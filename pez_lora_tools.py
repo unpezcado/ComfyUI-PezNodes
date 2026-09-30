@@ -1,5 +1,6 @@
 ﻿import os
 import json
+import math
 import folder_paths
 import comfy.utils
 from safetensors import safe_open
@@ -17,7 +18,7 @@ class PezLoadLoraWithTags:
                 "lora_name": (folder_paths.get_filename_list("loras"), ),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
-                "manual_tags": ("STRING", {"multiline": True, "default": "", "tooltip": "Tus trigger words manuales. Si el LoRA trae metadatos, se combinarán y se borrarán los duplicados."}),
+                "manual_tags": ("STRING", {"multiline": True, "default": "", "tooltip": "Tus trigger words manuales. Si el LoRA trae metadatos, se combinaran y se borraran los duplicados."}),
             }
         }
 
@@ -107,12 +108,16 @@ class PezLoadLoraWithTags:
 
         return (model_lora, clip_lora, final_tags_str)
 
-class PezPromptCombiner:
+class PezPrompterMaximum:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
                 "main_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt principal."}),
+                "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "3:2", "2:3"], {"default": "16:9"}),
+                "megapixels": ("FLOAT", {"default": 0.4, "min": 0.1, "max": 10.0, "step": 0.1, "tooltip": "0.4 MP es comun para video. SDXL usa 1.0 MP."}),
+                "multiple": ("INT", {"default": 32, "min": 8, "max": 128, "step": 8, "tooltip": "Multiplo para redondear pixeles (32 es el estandar para modelos de video y SDXL)."}),
+                "duration_seconds": ("INT", {"default": 5, "min": 1, "max": 60, "tooltip": "Duracion del video en segundos. Ignora esto si estas haciendo una imagen."}),
             },
             "optional": {
                 "extra_tags": ("STRING", {"forceInput": True, "tooltip": "Conecta aqui la salida TAGS de tu Pez Load LoRA."}),
@@ -120,33 +125,54 @@ class PezPromptCombiner:
         }
 
     CATEGORY = "Pez/Text"
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("PROMPT_FINAL",)
-    FUNCTION = "combine"
+    RETURN_TYPES = ("STRING", "INT", "INT", "INT")
+    RETURN_NAMES = ("PROMPT_FINAL", "WIDTH", "HEIGHT", "DURATION_SECONDS")
+    FUNCTION = "process"
 
-    def combine(self, main_prompt, extra_tags=""):
-        # Limpiar
+    def process(self, main_prompt, aspect_ratio, megapixels, multiple, duration_seconds, extra_tags=""):
+        # 1. Procesar Prompt
         p = main_prompt.strip()
         t = extra_tags.strip() if extra_tags else ""
         
+        final_prompt = ""
         if not p and not t:
-            return ("",)
-        if not p:
-            return (t,)
-        if not t:
-            return (p,)
-            
-        # Unir asegurando que haya una coma
-        if p.endswith(","):
-            return (f"{p} {t}",)
+            final_prompt = ""
+        elif not p:
+            final_prompt = t
+        elif not t:
+            final_prompt = p
+        elif p.endswith(","):
+            final_prompt = f"{p} {t}"
         else:
-            return (f"{p}, {t}",)
+            final_prompt = f"{p}, {t}"
+            
+        # 2. Calcular Megapixeles -> Ancho y Alto
+        # AR = W / H  =>  W = H * AR
+        # Area = W * H = H^2 * AR
+        # H = sqrt(Area / AR)
+        
+        area = megapixels * 1_000_000
+        
+        if ":" in aspect_ratio:
+            w_ratio, h_ratio = aspect_ratio.split(":")
+            ar = float(w_ratio) / float(h_ratio)
+        else:
+            ar = 1.0
+            
+        h_exact = math.sqrt(area / ar)
+        w_exact = h_exact * ar
+        
+        # Redondear al multiplo mas cercano
+        width = int(round(w_exact / multiple) * multiple)
+        height = int(round(h_exact / multiple) * multiple)
+
+        return (final_prompt, width, height, duration_seconds)
 
 NODE_CLASS_MAPPINGS = {
     "PezLoadLoraWithTags": PezLoadLoraWithTags,
-    "PezPromptCombiner": PezPromptCombiner
+    "PezPrompterMaximum": PezPrompterMaximum
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PezLoadLoraWithTags": "Pez Load LoRA & Triggers",
-    "PezPromptCombiner": "Pez Prompt Combiner"
+    "PezPrompterMaximum": "Pez Prompter Maximum"
 }

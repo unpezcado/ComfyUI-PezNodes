@@ -1,6 +1,6 @@
 ﻿# ComfyUI-PezNodes 🐟
 
-Una colección de nodos personalizados para **ComfyUI** diseñados para agilizar flujos de trabajo de video, especialmente optimizados para modelos como **MiniMax H3**.
+Una colección de nodos personalizados para **ComfyUI** diseñados para agilizar flujos de trabajo de video, especialmente optimizados para modelos como **MiniMax H3** (¡pero perfectamente usables para imágenes!).
 
 ## Nodos Incluidos
 
@@ -45,13 +45,15 @@ La versión definitiva del cargador de LoRAs. Reemplaza por completo el nodo nat
 
 ---
 
-### 4. Pez Prompt Combiner
-El compañero perfecto para el nodo anterior. Sirve como tu lienzo principal para escribir.
+### 4. Pez Prompter Maximum
+El "Súper Nodo" maestro para orquestar tu generación de imagen o video desde un solo lugar. ¡Adiós a tener mil nodos regados por el canvas!
 
 **¿Qué hace?**
-- Escribes tu prompt principal normal (ej. `a dog running in a field`).
-- Recibe por cable las etiquetas purificadas desde tu **Pez Load LoRA & Triggers**.
-- Concatena todo inteligentemente (agregando comas donde se debe) y te entrega una cadena de texto impecable, lista para irse al `CLIP Text Encode`.
+- **Prompter + LoRA Triggers:** Escribes tu prompt principal y recibe por cable las etiquetas purificadas desde tu nodo `Load LoRA & Triggers`. Concatena todo inteligentemente agregando las comas necesarias.
+- **Selector de Resolución por Megapíxeles:** Seleccionas un *Aspect Ratio* (ej. 16:9) y los *Megapíxeles* (ej. 0.4 para video, 1.0 para SDXL). El nodo calcula el ancho y alto exactos matemáticamente.
+- **Múltiplos de Pixeles:** Define el redondeo exacto de los píxeles (ej. 32 para modelos de video y SDXL, 64 para SD 1.5, 16 para Flux).
+- **Duración de Video:** Define los segundos del clip (puedes ignorar esta salida si haces imágenes).
+- **Salidas universales:** Te entrega `PROMPT_FINAL` (String), `WIDTH` (Int), `HEIGHT` (Int) y `DURATION_SECONDS` (Int) listos para conectar a tus generadores.
 
 ## Instalación
 
