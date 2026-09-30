@@ -62,14 +62,20 @@ api.addEventListener("pez_minimax_preview", (e) => {
 api.addEventListener("status", (e) => {
     if (e.detail && e.detail.exec_info && e.detail.exec_info.queue_remaining === 0) {
         for (const n of allPreviewNodes) {
-            if (n._h3PauseVideo) n._h3PauseVideo();
+            if (n._h3Clear) n._h3Clear();
         }
     }
 });
 
 api.addEventListener("b_queue_end", () => {
     for (const n of allPreviewNodes) {
-        if (n._h3PauseVideo) n._h3PauseVideo();
+        if (n._h3Clear) n._h3Clear();
+    }
+});
+
+api.addEventListener("execution_start", () => {
+    for (const n of allPreviewNodes) {
+        if (n._h3Clear) n._h3Clear();
     }
 });
 
@@ -366,11 +372,32 @@ app.registerExtension({
                 hideVideo();
                 liveUrl = null;
                 liveMime = null;
-                placeholder.remove();
-                imageArea.appendChild(placeholder);
+                
+                // Limpiar imagenes
+                visibleImg.src = "";
+                visibleImg.style.opacity = "0";
+                pendingImg.src = "";
+                pendingImg.style.opacity = "0";
+                
+                if (!placeholder.parentNode) {
+                    imageArea.appendChild(placeholder);
+                }
                 placeholder.textContent = "waiting for sample…";
                 scrubBar.style.display = "none";
+                
+                // Limpiar textos
+                summary.textContent = "idle";
+                sdCell.val.textContent = "—";
+                timeCell.val.textContent = "—";
+                
+                // Limpiar graficas
+                cachedSigmas = null;
+                const r1 = syncCanvasDPR(sdCell.canvas);
+                r1.ctx.clearRect(0, 0, r1.W, r1.H);
+                const r2 = syncCanvasDPR(timeCell.canvas);
+                r2.ctx.clearRect(0, 0, r2.W, r2.H);
             }
+            node._h3Clear = resetRun;
 
             // Animated playback scrub (WebP plays natively in <img>; MP4 in <video>).
             function clipDurationMs() {
@@ -506,6 +533,7 @@ app.registerExtension({
                 allPreviewNodes.delete(node);
                 node._h3PreviewHandler = null;
                 node._h3PauseVideo = null;
+                node._h3Clear = null;
                 for (const u of stepBlobUrls) {
                     if (u) try { URL.revokeObjectURL(u); } catch {}
                 }
