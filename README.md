@@ -9,13 +9,13 @@ Este nodo soluciona el problema de los "bordes mordidos" (jagged edges / aliasin
 
 **¿Qué hace?**
 - Carga imágenes PNG reconociendo perfectamente su canal Alfa (transparencia).
-- Genera automáticamente un color de fondo sólido (por defecto #808080 gris medio, o el que elijas).
+- Genera automáticamente un color de fondo sólido (por defecto `#808080` gris medio, o el que elijas).
 - Realiza una composición (composite) interna perfecta de la imagen sobre el fondo.
 - Si la imagen cargada no tiene transparencia (ej. JPG), el nodo la procesa intacta sin generar errores de dimensiones.
 
 **¿Cómo conectarlo?**
-Simplemente reemplaza tu nodo tradicional Load Image por este. 
-- Conecta la salida IMAGE directo a tu nodo de **Referencias de Video** o **ControlNet**.
+Simplemente reemplaza tu nodo tradicional `Load Image` por este. 
+- Conecta la salida `IMAGE` directo a tu nodo de **Referencias de Video** o **ControlNet**.
 
 ---
 
@@ -35,14 +35,14 @@ Un nodo de previsualización en tiempo real para observar el progreso de la gene
 ## Instalación
 
 1. Navega a la carpeta de nodos personalizados de tu instalación de ComfyUI:
-   `ash
+   ```bash
    cd ComfyUI/custom_nodes/
-   `
+   ```
 2. Clona este repositorio:
-   `ash
+   ```bash
    git clone https://github.com/unpezcado/ComfyUI-PezNodes.git
-   `
+   ```
 3. Reinicia tu servidor de ComfyUI. Los nodos aparecerán bajo la categoría **Pez**.
 
 ## Contribuciones y Screenshots
-*(Pro-tip: Puedes subir aquí imágenes o capturas de pantalla de tus workflows para mostrar a otros miembros del equipo cómo conectar los cables visualmente).*
+¡Agrega aquí tus capturas de pantalla para ayudar a otros miembros a conectar los cables visualmente!
