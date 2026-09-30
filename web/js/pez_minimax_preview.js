@@ -50,11 +50,27 @@ function findNodeByQualifiedId(rootGraph, qid) {
     return graph?.getNodeById?.(leafId) || null;
 }
 
+const allPreviewNodes = new Set();
+
 api.addEventListener("pez_minimax_preview", (e) => {
     const data = e.detail;
     if (!data || data.node_id == null) return;
     const node = findNodeByQualifiedId(app.graph, data.node_id);
     if (node?._h3PreviewHandler) node._h3PreviewHandler(data);
+});
+
+api.addEventListener("status", (e) => {
+    if (e.detail && e.detail.exec_info && e.detail.exec_info.queue_remaining === 0) {
+        for (const n of allPreviewNodes) {
+            if (n._h3PauseVideo) n._h3PauseVideo();
+        }
+    }
+});
+
+api.addEventListener("b_queue_end", () => {
+    for (const n of allPreviewNodes) {
+        if (n._h3PauseVideo) n._h3PauseVideo();
+    }
 });
 
 function chainCallback(target, name, fn) {
@@ -174,6 +190,7 @@ app.registerExtension({
         chainCallback(nodeType.prototype, "onNodeCreated", function () {
             ensureStyles();
             const node = this;
+            allPreviewNodes.add(node);
 
             const root = el("div", "h3pov-root");
             const header = el("div", "h3pov-header", root);
@@ -469,8 +486,26 @@ app.registerExtension({
             };
             node._h3PreviewHandler = handler;
 
+            node._h3PauseVideo = () => {
+                if (videoEl && !videoEl.paused) {
+                    videoEl.pause();
+                }
+                if (visibleImg && visibleImg.src && visibleImg.src.startsWith("blob:") && liveMime === "image/webp") {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = visibleImg.naturalWidth || visibleImg.width;
+                    canvas.height = visibleImg.naturalHeight || visibleImg.height;
+                    const ctx = canvas.getContext("2d");
+                    if (ctx && canvas.width > 0 && canvas.height > 0) {
+                        ctx.drawImage(visibleImg, 0, 0);
+                        visibleImg.src = canvas.toDataURL("image/jpeg");
+                    }
+                }
+            };
+
             chainCallback(node, "onRemoved", function () {
+                allPreviewNodes.delete(node);
                 node._h3PreviewHandler = null;
+                node._h3PauseVideo = null;
                 for (const u of stepBlobUrls) {
                     if (u) try { URL.revokeObjectURL(u); } catch {}
                 }
