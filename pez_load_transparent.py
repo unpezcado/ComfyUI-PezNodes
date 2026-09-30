@@ -1,4 +1,4 @@
-﻿import torch
+import torch
 import nodes
 import folder_paths
 import os
@@ -29,6 +29,12 @@ class PezLoadTransparentPNG:
         
         # img_out es [B, H, W, 3] en rango [0, 1]
         # mask_out es [B, H, W] en rango [0, 1] donde 1.0 = TRANSPARENTE y 0.0 = OPACO
+        
+        # Validar si ComfyUI devolvio una mascara dummy de 64x64 (sucede si la imagen NO tiene canal alfa)
+        if mask_out.shape[1:3] != img_out.shape[1:3]:
+            # La imagen es completamente opaca, no necesita fondo.
+            mask_out = torch.zeros((img_out.shape[0], img_out.shape[1], img_out.shape[2]), dtype=img_out.dtype, device=img_out.device)
+            return (img_out, mask_out)
         
         # Parseamos el color hexadecimal
         bg_color = bg_color.lstrip('#')
