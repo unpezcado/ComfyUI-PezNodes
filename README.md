@@ -34,17 +34,24 @@ Un nodo de previsualización en tiempo real para observar el progreso de la gene
 
 ---
 
-### 3. Pez LoRA Trigger Extractor
-Un nodo utilitario para leer automáticamente los metadatos de cualquier archivo LoRA `.safetensors` y extraer las palabras clave (trigger words) con las que fue entrenado.
+### 3. Pez Load LoRA & Triggers
+La versión definitiva del cargador de LoRAs. Reemplaza por completo el nodo nativo de ComfyUI, añadiendo capacidades de extracción inteligente de etiquetas y limpieza de prompts.
 
 **¿Qué hace?**
-- Lee el encabezado del archivo LoRA sin cargarlo en la memoria VRAM (súper rápido).
-- Busca el estándar de Civitai / ModelSpec (`modelspec.trigger_words`) o la frecuencia de etiquetas original de Kohya-ss (`ss_tag_frequency`).
-- Extrae las etiquetas (tags) y te las entrega ordenadas por relevancia/frecuencia como un simple texto plano.
+- Carga el LoRA y lo aplica al modelo y al CLIP (igual que el clásico).
+- Automáticamente extrae las "trigger words" ocultas en los metadatos del archivo sin afectar el rendimiento.
+- Incluye un campo manual (`manual_tags`) por si el creador borró los metadatos del archivo.
+- **Filtro Anti-Duplicados:** Mezcla tus etiquetas manuales con las etiquetas automáticas del LoRA y elimina las palabras repetidas, asegurando que tu prompt no quede sobre-saturado (quemado).
 
-**¿Cómo conectarlo?**
-- Selecciona tu LoRA de la lista desplegable.
-- Conecta su salida `TRIGGER_WORDS` directamente a tu nodo **CLIP Text Encode (Prompt)** o combínala usando un nodo de concatenación de texto para inyectar automáticamente la invocación del LoRA.
+---
+
+### 4. Pez Prompt Combiner
+El compañero perfecto para el nodo anterior. Sirve como tu lienzo principal para escribir.
+
+**¿Qué hace?**
+- Escribes tu prompt principal normal (ej. `a dog running in a field`).
+- Recibe por cable las etiquetas purificadas desde tu **Pez Load LoRA & Triggers**.
+- Concatena todo inteligentemente (agregando comas donde se debe) y te entrega una cadena de texto impecable, lista para irse al `CLIP Text Encode`.
 
 ## Instalación
 
@@ -59,11 +66,5 @@ Un nodo utilitario para leer automáticamente los metadatos de cualquier archivo
 3. Reinicia tu servidor de ComfyUI. Los nodos aparecerán bajo la categoría **Pez**.
 
 ## Contribuciones y Screenshots
-
-## Pez Load Transparent PNG
-
-<img width="466" height="597" alt="Captura de pantalla 2026-09-30 095208" src="https://github.com/user-attachments/assets/daa87931-ee7f-4fec-87c8-f1a49133c2d1" />
-
-## Pez MiniMax Preview
-
-<img width="1385" height="615" alt="Captura de pantalla 2026-09-30 095135" src="https://github.com/user-attachments/assets/2ba3c0b5-b93e-4c93-8837-40d1385b2ca7" />
+¡Agrega aquí tus capturas de pantalla para ayudar a otros miembros a conectar los cables visualmente!
+![image](https://github.com/user-attachments/assets/6df71b05-5cae-4053-93d1-3fb3db700a18)
