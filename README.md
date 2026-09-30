@@ -46,8 +46,10 @@ Un nodo de previsualización en tiempo real para observar el progreso de la gene
 
 ## Contribuciones y Screenshots
 
-Pez Load Transparent PNG
+## Pez Load Transparent PNG
+
 <img width="466" height="597" alt="Captura de pantalla 2026-09-30 095208" src="https://github.com/user-attachments/assets/daa87931-ee7f-4fec-87c8-f1a49133c2d1" />
 
-Pez MiniMax Preview
+## Pez MiniMax Preview
+
 <img width="1385" height="615" alt="Captura de pantalla 2026-09-30 095135" src="https://github.com/user-attachments/assets/2ba3c0b5-b93e-4c93-8837-40d1385b2ca7" />
