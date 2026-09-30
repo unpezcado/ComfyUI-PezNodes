@@ -32,6 +32,20 @@ Un nodo de previsualización en tiempo real para observar el progreso de la gene
 - Se conecta usualmente en medio del flujo de muestreo (sampling) de MiniMax H3. 
 - Su funcionamiento interno toma la información del modelo y extrae los tensores para decodificarlos usando un VAE ligero, proyectando los cuadros en el widget visual.
 
+---
+
+### 3. Pez LoRA Trigger Extractor
+Un nodo utilitario para leer automáticamente los metadatos de cualquier archivo LoRA `.safetensors` y extraer las palabras clave (trigger words) con las que fue entrenado.
+
+**¿Qué hace?**
+- Lee el encabezado del archivo LoRA sin cargarlo en la memoria VRAM (súper rápido).
+- Busca el estándar de Civitai / ModelSpec (`modelspec.trigger_words`) o la frecuencia de etiquetas original de Kohya-ss (`ss_tag_frequency`).
+- Extrae las etiquetas (tags) y te las entrega ordenadas por relevancia/frecuencia como un simple texto plano.
+
+**¿Cómo conectarlo?**
+- Selecciona tu LoRA de la lista desplegable.
+- Conecta su salida `TRIGGER_WORDS` directamente a tu nodo **CLIP Text Encode (Prompt)** o combínala usando un nodo de concatenación de texto para inyectar automáticamente la invocación del LoRA.
+
 ## Instalación
 
 1. Navega a la carpeta de nodos personalizados de tu instalación de ComfyUI:
