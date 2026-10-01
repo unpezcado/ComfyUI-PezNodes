@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import math
 import folder_paths
@@ -113,11 +113,11 @@ class PezPrompterMaximum:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "main_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt principal."}),
                 "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "3:2", "2:3"], {"default": "16:9"}),
                 "megapixels": ("FLOAT", {"default": 0.4, "min": 0.1, "max": 10.0, "step": 0.1, "tooltip": "0.4 MP es comun para video. SDXL usa 1.0 MP."}),
                 "multiple": ("INT", {"default": 32, "min": 8, "max": 128, "step": 8, "tooltip": "Multiplo para redondear pixeles (32 es el estandar para modelos de video y SDXL)."}),
-                "duration_seconds": ("INT", {"default": 5, "min": 1, "max": 60, "tooltip": "Duracion del video en segundos. Ignora esto si estas haciendo una imagen."}),
+                "duration_seconds": ("FLOAT", {"default": 5.0, "min": 0.1, "max": 60.0, "step": 0.1, "tooltip": "Duracion del video en segundos. Ignora esto si estas haciendo una imagen."}),
+                "main_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt principal."}),
             },
             "optional": {
                 "extra_tags": ("STRING", {"forceInput": True, "tooltip": "Conecta aqui la salida TAGS de tu Pez Load LoRA."}),
@@ -126,7 +126,7 @@ class PezPrompterMaximum:
 
     CATEGORY = "Pez/Text"
     RETURN_TYPES = ("STRING", "INT", "INT", "INT")
-    RETURN_NAMES = ("PROMPT_FINAL", "WIDTH", "HEIGHT", "DURATION_SECONDS")
+    RETURN_NAMES = ("PROMPT_FINAL", "WIDTH", "HEIGHT", "VIDEO_FRAMES")
     FUNCTION = "process"
 
     def process(self, main_prompt, aspect_ratio, megapixels, multiple, duration_seconds, extra_tags=""):
@@ -147,10 +147,6 @@ class PezPrompterMaximum:
             final_prompt = f"{p}, {t}"
             
         # 2. Calcular Megapixeles -> Ancho y Alto
-        # AR = W / H  =>  W = H * AR
-        # Area = W * H = H^2 * AR
-        # H = sqrt(Area / AR)
-        
         area = megapixels * 1_000_000
         
         if ":" in aspect_ratio:
@@ -162,11 +158,16 @@ class PezPrompterMaximum:
         h_exact = math.sqrt(area / ar)
         w_exact = h_exact * ar
         
-        # Redondear al multiplo mas cercano
         width = int(round(w_exact / multiple) * multiple)
         height = int(round(h_exact / multiple) * multiple)
 
-        return (final_prompt, width, height, duration_seconds)
+        # 3. Calcular Frames para MiniMax (F + (5 - (F % 17)) % 17) a 24 FPS
+        base_frames = max(5, round(duration_seconds * 24))
+        mod_val = base_frames % 17
+        add_val = (5 - mod_val) % 17
+        video_frames = int(base_frames + add_val)
+
+        return (final_prompt, width, height, video_frames)
 
 NODE_CLASS_MAPPINGS = {
     "PezLoadLoraWithTags": PezLoadLoraWithTags,

@@ -1,4 +1,5 @@
 ﻿# ComfyUI-PezNodes 🐟
+**Versión Actual:** v1.1.0
 
 Una colección de nodos personalizados para **ComfyUI** diseñados para agilizar flujos de trabajo de video, especialmente optimizados para modelos como **MiniMax H3** (¡pero perfectamente usables para imágenes!).
 
@@ -52,8 +53,8 @@ El "Súper Nodo" maestro para orquestar tu generación de imagen o video desde u
 - **Prompter + LoRA Triggers:** Escribes tu prompt principal y recibe por cable las etiquetas purificadas desde tu nodo `Load LoRA & Triggers`. Concatena todo inteligentemente agregando las comas necesarias.
 - **Selector de Resolución por Megapíxeles:** Seleccionas un *Aspect Ratio* (ej. 16:9) y los *Megapíxeles* (ej. 0.4 para video, 1.0 para SDXL). El nodo calcula el ancho y alto exactos matemáticamente.
 - **Múltiplos de Pixeles:** Define el redondeo exacto de los píxeles (ej. 32 para modelos de video y SDXL, 64 para SD 1.5, 16 para Flux).
-- **Duración de Video:** Define los segundos del clip (puedes ignorar esta salida si haces imágenes).
-- **Salidas universales:** Te entrega `PROMPT_FINAL` (String), `WIDTH` (Int), `HEIGHT` (Int) y `DURATION_SECONDS` (Int) listos para conectar a tus generadores.
+- **Duración de Video (MiniMax ready):** Define los segundos del clip con decimales (ej. 5.5). El nodo automáticamente realiza el cálculo y redondeo matemático interno específico de MiniMax H3 (`F + (5 - (F % 17)) % 17`) para evitar incompatibilidades.
+- **Salidas universales:** Te entrega `PROMPT_FINAL` (String), `WIDTH` (Int), `HEIGHT` (Int) y `VIDEO_FRAMES` (Int) listos para conectar a tus generadores.
 
 ## Instalación
 
@@ -66,6 +67,10 @@ El "Súper Nodo" maestro para orquestar tu generación de imagen o video desde u
    git clone https://github.com/unpezcado/ComfyUI-PezNodes.git
    ```
 3. Reinicia tu servidor de ComfyUI. Los nodos aparecerán bajo la categoría **Pez**.
+
+## Historial de Versiones
+- **v1.1.0:** Se reemplazó el extractor suelto por `Pez Load LoRA & Triggers` y `Pez Prompter Maximum`. Se integró el cálculo matemático de frames de MiniMax H3. Se ordenaron los inputs visualmente para mejor experiencia (UX).
+- **v1.0.0:** Lanzamiento inicial con `Pez Load Transparent PNG` y `Pez MiniMax Preview`.
 
 ## Contribuciones y Screenshots
 ¡Agrega aquí tus capturas de pantalla para ayudar a otros miembros a conectar los cables visualmente!
