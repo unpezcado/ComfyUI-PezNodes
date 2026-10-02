@@ -1,4 +1,4 @@
-"""MiniMax H3 Preview Override â€” kjnodes-style live preview for MiniMax H3.
+"""MiniMax H3 Preview Override ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kjnodes-style live preview for MiniMax H3.
 
 Port of KJNodes' "Model Preview Override" for the MiniMax H3 AV model.
 
@@ -140,6 +140,16 @@ def _tae_decode_to_pil(vae, video_5d, max_frames=None):
     if max_frames is not None and 0 < max_frames < t_total:
         indices = np.linspace(0, t_total - 1, max_frames).round().astype(int).tolist()
         images = images[indices]
+        
+    # Validacion contra corrupcion FP16 en resoluciones extremas
+    import torch
+    if torch.isnan(images).any():
+        if not getattr(vae, '_nan_warned', False):
+            vae._nan_warned = True
+            import logging
+            logging.warning('[Pez MiniMax Preview] Tiny VAE genero NaNs (posible overflow FP16 por alta resolucion). Usando Latent2RGB de respaldo.')
+        return []
+
     # TAEHV/TAESD decode to [-1, 1] by contract; clamp absorbs any drift (no per-step min()).
     images = images.add(1.0).mul_(127.5).clamp_(0, 255)
     u8 = images.to(torch.uint8).cpu().numpy()
@@ -149,7 +159,7 @@ def _tae_decode_to_pil(vae, video_5d, max_frames=None):
 class _DropMissingVAEKeys(logging.Filter):
     """Decoder-only TAE files (e.g. the trained H3 decoder) have no encoder half, so
     comfy.sd.VAE always logs a 'Missing VAE keys [...]' warning on load. Expected
-    here â€” drop just that record while loading so the log stays clean."""
+    here ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â drop just that record while loading so the log stays clean."""
 
     def filter(self, record):
         return "Missing VAE keys" not in record.getMessage()
@@ -227,7 +237,7 @@ def _probe_nvenc():
 
 _NVENC_AVAILABLE = _probe_nvenc()
 
-# NVENC H.264 rejects sub-145x49 inputs at avcodec_open2 â€” fall back to WebP for small frames.
+# NVENC H.264 rejects sub-145x49 inputs at avcodec_open2 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fall back to WebP for small frames.
 _NVENC_MIN_W = 145
 _NVENC_MIN_H = 49
 
@@ -329,7 +339,7 @@ class _H3PreviewOverrideWrapper:
         self.preview_fps = preview_fps
         self.frames = []
         # Only tiny autoencoders (TAEHV/TAESD) are allowed as per-step decoders.
-        # A full video VAE would eat VRAM every step â€” ignore it and stay on Latent2RGB.
+        # A full video VAE would eat VRAM every step ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ignore it and stay on Latent2RGB.
         self.vae = None
         self._tiny_vae = False
         if vae is not None:
@@ -341,7 +351,7 @@ class _H3PreviewOverrideWrapper:
                 else:
                     logging.warning(
                         f"[MiniMax H3 PreviewOverride] VAE ({cls_name}) is not a tiny decoder "
-                        f"(TAEHV/TAESD) â€” ignoring it, using Latent2RGB. Full video VAEs are too "
+                        f"(TAEHV/TAESD) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ignoring it, using Latent2RGB. Full video VAEs are too "
                         f"heavy for per-step previews; use MiniMax H3 Tiny VAE Loader instead."
                     )
             except Exception:
@@ -355,7 +365,7 @@ class _H3PreviewOverrideWrapper:
 
         # Preflight: a tiny decoder must match the model's video latent channels (H3 = 24).
         # A mismatched TAE (e.g. the 128-channel LTX2 tae) physically cannot decode H3 latents
-        # â€” disable it with one clear warning instead of failing every step.
+        # ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â disable it with one clear warning instead of failing every step.
         if self._tiny_vae:
             try:
                 want = latent_shapes[0][1] if latent_shapes and len(latent_shapes) > 0 \
@@ -364,7 +374,7 @@ class _H3PreviewOverrideWrapper:
                 if want is not None and have is not None and have != want:
                     logging.warning(
                         f"[MiniMax H3 PreviewOverride] Loaded TAE has {have} latent channels but "
-                        f"the model needs {want} â€” it cannot decode these latents. TAE previews "
+                        f"the model needs {want} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it cannot decode these latents. TAE previews "
                         f"disabled, using Latent2RGB. (LTX/Wan TAEs are incompatible with H3; "
                         f"a 24-channel H3 TAE is required.)"
                     )
@@ -395,7 +405,7 @@ class _H3PreviewOverrideWrapper:
 
         sigmas_list = sigmas.detach().cpu().tolist() if sigmas is not None else []
 
-        # Pre-seed so step 1 has a measurable Î” (model's first transformation noise -> x0).
+        # Pre-seed so step 1 has a measurable ÃƒÅ½Ã¢â‚¬Â (model's first transformation noise -> x0).
         initial_video_cpu = None
         try:
             if sigmas is not None and len(sigmas) > 0:
@@ -403,7 +413,7 @@ class _H3PreviewOverrideWrapper:
                 seeded = noise * s0  # flat packed tensor at OUTER_SAMPLE level
                 initial_video_cpu = _video_part(seeded, latent_shapes).detach().float().cpu()
         except Exception as e:
-            logging.warning(f"[MiniMax H3 PreviewOverride] initial seed Î” pre-fill failed: {e}")
+            logging.warning(f"[MiniMax H3 PreviewOverride] initial seed ÃƒÅ½Ã¢â‚¬Â pre-fill failed: {e}")
 
         state = {"last_video_gpu": None, "last_time": None, "step_ms_window": []}
         total_steps_init = max(0, len(sigmas_list) - 1)
@@ -473,7 +483,7 @@ class _H3PreviewOverrideWrapper:
                             elif prev is previewer:
                                 logging.warning(
                                     f"[MiniMax H3 PreviewOverride] {type(previewer).__name__} returned "
-                                    f"{type(out).__name__} instead of PIL.Image â€” falling back to Latent2RGB."
+                                    f"{type(out).__name__} instead of PIL.Image ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â falling back to Latent2RGB."
                                 )
 
                     if not pil_frames:
@@ -489,7 +499,7 @@ class _H3PreviewOverrideWrapper:
                     self.frames.append(pil_first)
 
                     if node_id is not None and PromptServer is not None:
-                        # Î” over the video stream only; computed on GPU to avoid a per-step
+                        # ÃƒÅ½Ã¢â‚¬Â over the video stream only; computed on GPU to avoid a per-step
                         # full-latent CPU copy (keeps one latent in VRAM instead).
                         delta_v = None
                         try:
@@ -500,7 +510,7 @@ class _H3PreviewOverrideWrapper:
                                 delta_v = (diff.norm() / max(1, diff.numel()) ** 0.5).item()
                             state["last_video_gpu"] = video_cur
                         except Exception as e:
-                            logging.warning(f"[MiniMax H3 PreviewOverride] Î” failed: {e}")
+                            logging.warning(f"[MiniMax H3 PreviewOverride] ÃƒÅ½Ã¢â‚¬Â failed: {e}")
 
                         now = time.perf_counter()
                         step_ms = None
@@ -658,8 +668,9 @@ class PezMiniMaxPreview:
                 "quality": (["Low (Baja)", "Medium (Media)", "High (Alta)"], {"default": "High (Alta)"}),
             },
             "optional": {
-                "tiny_vae": ("VAE", {"tooltip": "Opcional: Si tienes un Tiny VAE específico, conéctalo aquí."}),
+                "tiny_vae": ("VAE", {"tooltip": "Opcional: Si tienes un Tiny VAE especÃƒÂ­fico, conÃƒÂ©ctalo aquÃƒÂ­."}),
             },
+            "hidden": {"unique_id": "UNIQUE_ID"}
         }
 
     RETURN_TYPES = ("MODEL",)
@@ -667,7 +678,7 @@ class PezMiniMaxPreview:
     FUNCTION = "execute"
     CATEGORY = "Pez/MiniMax"
 
-    def execute(self, model, enable_preview, quality, tiny_vae=None):
+    def execute(self, model, enable_preview, quality, tiny_vae=None, unique_id=None):
         if not enable_preview:
             return (model,)
         
@@ -686,7 +697,7 @@ class PezMiniMaxPreview:
 
         cb = _H3PreviewOverrideWrapper(
             max_resolution=max_res,
-            node_id=getattr(self, "pez_id", None) or "288",
+            node_id=unique_id or getattr(self, "pez_id", None) or "288",
             jpeg_quality=jpeg_q,
             suppress_default=True,
             preview_frames=anim_frames,

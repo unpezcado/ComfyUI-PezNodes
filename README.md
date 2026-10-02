@@ -1,5 +1,5 @@
 ﻿# ComfyUI-PezNodes 🐟
-**Versión Actual:** v1.1.0
+**Versión Actual:** v1.1.1
 
 Una colección de nodos personalizados para **ComfyUI** diseñados para agilizar flujos de trabajo de video, especialmente optimizados para modelos como **MiniMax H3** (¡pero perfectamente usables para imágenes!).
 
@@ -28,6 +28,7 @@ Un nodo de previsualización en tiempo real para observar el progreso de la gene
 - Renderiza el avance directamente en la interfaz de ComfyUI.
 - Incluye gráficas de σ/Δ (Sigma/Delta) y tiempo por paso.
 - **Inteligente:** La pantalla permanece limpia ("waiting for sample...") al iniciar un workflow y se auto-limpia al finalizar para no saturar tu pantalla con previsualizaciones viejas.
+- **A prueba de fallos:** Detecta automáticamente corrupción matemática (Overflow FP16) en resoluciones extremas y cambia de motor de decodificación al vuelo para garantizar que tu pantalla nunca se quede en negro.
 
 **¿Cómo conectarlo?**
 - Se conecta usualmente en medio del flujo de muestreo (sampling) de MiniMax H3. 
@@ -69,6 +70,7 @@ El "Súper Nodo" maestro para orquestar tu generación de imagen o video desde u
 3. Reinicia tu servidor de ComfyUI. Los nodos aparecerán bajo la categoría **Pez**.
 
 ## Historial de Versiones
+- **v1.1.1:** Corrección de `Pez MiniMax Preview`: Captura dinámica del ID en el canvas (soporte para múltiples flujos simultáneos). Se añadió protección contra "Pantalla Negra" (NaN / FP16 Overflow detect) en resoluciones ultra altas (1.5MP+).
 - **v1.1.0:** Se reemplazó el extractor suelto por `Pez Load LoRA & Triggers` y `Pez Prompter Maximum`. Se integró el cálculo matemático de frames de MiniMax H3. Se ordenaron los inputs visualmente para mejor experiencia (UX).
 - **v1.0.0:** Lanzamiento inicial con `Pez Load Transparent PNG` y `Pez MiniMax Preview`.
 
