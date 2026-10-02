@@ -75,5 +75,20 @@ El "Súper Nodo" maestro para orquestar tu generación de imagen o video desde u
 - **v1.0.0:** Lanzamiento inicial con `Pez Load Transparent PNG` y `Pez MiniMax Preview`.
 
 ## Contribuciones y Screenshots
-¡Agrega aquí tus capturas de pantalla para ayudar a otros miembros a conectar los cables visualmente!
-![image](https://github.com/user-attachments/assets/6df71b05-5cae-4053-93d1-3fb3db700a18)
+
+**Pez MiniMax Preview**
+
+<img width="1632" height="767" alt="Captura de pantalla 2026-10-01 234525" src="https://github.com/user-attachments/assets/d2b3ab6e-8f7a-42df-a094-8f59a7703d6c" />
+
+**Pez Prompter Maximum**
+
+<img width="452" height="458" alt="Captura de pantalla 2026-10-01 234802" src="https://github.com/user-attachments/assets/9386e35f-1e33-4c96-ad26-b8b59590ddcc" />
+
+**Pez Load LoRA & Triggers**
+
+<img width="942" height="479" alt="Captura de pantalla 2026-10-01 235005" src="https://github.com/user-attachments/assets/8bf0b596-3b46-4d8b-a2e7-0c18cbcb43de" />
+
+**Pez Load Transparent PNG**
+
+<img width="406" height="536" alt="Captura de pantalla 2026-10-01 235427" src="https://github.com/user-attachments/assets/25ffafbf-06e6-4111-8eeb-364bc7ddd907" />
+
