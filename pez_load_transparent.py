@@ -77,5 +77,5 @@ NODE_CLASS_MAPPINGS = {
     "PezLoadTransparentPNG": PezLoadTransparentPNG
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PezLoadTransparentPNG": "Pez Load Transparent PNG"
+    "PezLoadTransparentPNG": "🐟 Pez Load Transparent PNG"
 }

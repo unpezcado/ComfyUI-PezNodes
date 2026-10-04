@@ -24,84 +24,72 @@ class PezLoadLoraWithTags:
 
     CATEGORY = "Pez/LoRA"
     RETURN_TYPES = ("MODEL", "CLIP", "STRING")
-    RETURN_NAMES = ("MODEL", "CLIP", "TAGS")
-    FUNCTION = "load_lora_and_tags"
+    RETURN_NAMES = ("MODEL", "CLIP", "TAGS (Extra)")
+    FUNCTION = "load_lora_with_tags"
 
-    def extract_tags_from_lora(self, lora_path):
-        if not lora_path or not os.path.exists(lora_path):
-            return []
-        
-        try:
-            with safe_open(lora_path, framework="pt") as f:
-                meta = f.metadata()
-                if not meta:
-                    return []
-                
-                # Revisar estandar Civitai / ModelSpec
-                if "modelspec.trigger_words" in meta:
-                    val = meta["modelspec.trigger_words"]
-                    if isinstance(val, str):
-                        try:
-                            parsed = json.loads(val)
-                            if isinstance(parsed, list):
-                                return parsed
-                        except:
-                            return [x.strip() for x in val.split(",")]
-                            
-                # Revisar estandar Kohya_ss
-                if "ss_tag_frequency" in meta:
-                    freq_data = json.loads(meta["ss_tag_frequency"])
-                    tag_counts = {}
-                    for dir_name, dir_tags in freq_data.items():
-                        for tag, count in dir_tags.items():
-                            tag = tag.strip()
-                            tag_counts[tag] = tag_counts.get(tag, 0) + count
-                    
-                    sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
-                    top_tags = [t[0] for t in sorted_tags[:20]]
-                    return top_tags
-                
-                if "ss_output_name" in meta:
-                    return [meta["ss_output_name"]]
-                    
-        except Exception as e:
-            print(f"[Pez Lora Extractor] Error al leer {lora_path}: {e}")
-            
-        return []
-
-    def load_lora_and_tags(self, model, clip, lora_name, strength_model, strength_clip, manual_tags):
-        if strength_model == 0 and strength_clip == 0:
-            return (model, clip, manual_tags)
-
+    def load_lora_with_tags(self, model, clip, lora_name, strength_model, strength_clip, manual_tags):
+        # 1. Cargar LoRA normalmente usando la funcion de ComfyUI
         lora_path = folder_paths.get_full_path("loras", lora_name)
-        lora = None
-        if self.loaded_lora is not None:
-            if self.loaded_lora[0] == lora_path:
-                lora = self.loaded_lora[1]
-            else:
-                temp = self.loaded_lora
-                self.loaded_lora = None
-                del temp
-
-        if lora is None:
-            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
-            self.loaded_lora = (lora_path, lora)
-
+        lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
         model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
-        
-        # Extraccion de tags
-        auto_tags = self.extract_tags_from_lora(lora_path)
-        
-        # Procesar los manual_tags
+
+        # 2. Extraer metadatos para encontrar trigger words / tags
+        found_tags = []
+        if lora_path.endswith(".safetensors"):
+            try:
+                with safe_open(lora_path, framework="pt", device="cpu") as f:
+                    metadata = f.metadata()
+                    if metadata:
+                        # Buscar claves comunes de triggers
+                        # A1111 / Kohya / Civitai suelen guardar 'ss_tag_frequency' o 'modelspec.tags'
+                        if "ss_tag_frequency" in metadata:
+                            try:
+                                freq_dict = json.loads(metadata["ss_tag_frequency"])
+                                for bucket, tags in freq_dict.items():
+                                    for tag in tags.keys():
+                                        found_tags.append(tag)
+                            except:
+                                pass
+                        
+                        if "modelspec.tags" in metadata:
+                            tags_comma = metadata["modelspec.tags"].split(",")
+                            found_tags.extend([t.strip() for t in tags_comma if t.strip()])
+                            
+                        # Algunos guardan una clave directa 'trigger_word' o 'trained_words'
+                        for k in ["trigger_word", "trained_words", "ss_trained_words"]:
+                            if k in metadata:
+                                try:
+                                    val = json.loads(metadata[k])
+                                    if isinstance(val, list):
+                                        found_tags.extend(val)
+                                    elif isinstance(val, str):
+                                        found_tags.extend([t.strip() for t in val.split(",")])
+                                except:
+                                    found_tags.extend([t.strip() for t in metadata[k].split(",")])
+            except Exception as e:
+                print(f"[PezLoRA] No se pudieron leer metadatos de {lora_name}: {e}")
+
+        # 3. Procesar manual_tags
         manual_list = [t.strip() for t in manual_tags.split(",") if t.strip()]
-        
-        # Combinar sin duplicados preservando el orden (manuales primero, luego automaticos)
-        final_list = []
+
+        # 4. Combinar y limpiar duplicados manteniendo el orden
+        # Primero las etiquetas encontradas en el archivo, luego las que el usuario escribio manualmente
+        combined = []
         seen = set()
-        for t in manual_list + auto_tags:
-            t_lower = t.lower()
-            if t_lower not in seen:
-                seen.add(t_lower)
+        
+        for t in found_tags + manual_list:
+            t_clean = t.strip()
+            # Limpiar etiquetas raras que puedan venir en formato JSON sucio
+            t_clean = t_clean.strip('\"\'[]{}')
+            if t_clean and t_clean.lower() not in seen:
+                seen.add(t_clean.lower())
+                combined.append(t_clean)
+
+        # Filtrar posibles tags no deseados o de sistema que a veces se cuelan
+        ignore_words = {"false", "true", "none", "null"}
+        final_list = []
+        for t in combined:
+            if t.lower() not in ignore_words and len(t) > 1:
                 final_list.append(t)
                 
         final_tags_str = ", ".join(final_list)
@@ -113,11 +101,12 @@ class PezPrompterMaximum:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "3:2", "2:3"], {"default": "16:9"}),
+                "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "3:2", "2:3"], {"default": "16:9", "pez_button": True}),
                 "megapixels": ("FLOAT", {"default": 0.4, "min": 0.1, "max": 10.0, "step": 0.1, "tooltip": "0.4 MP es comun para video. SDXL usa 1.0 MP."}),
                 "multiple": ("INT", {"default": 32, "min": 8, "max": 128, "step": 8, "tooltip": "Multiplo para redondear pixeles (32 es el estandar para modelos de video y SDXL)."}),
                 "duration_seconds": ("FLOAT", {"default": 5.0, "min": 0.1, "max": 60.0, "step": 0.1, "tooltip": "Duracion del video en segundos. Ignora esto si estas haciendo una imagen."}),
-                "main_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt principal."}),
+                "main_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt principal o positivo."}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "", "tooltip": "Escribe aqui tu prompt negativo."}),
             },
             "optional": {
                 "extra_tags": ("STRING", {"forceInput": True, "tooltip": "Conecta aqui la salida TAGS de tu Pez Load LoRA."}),
@@ -125,14 +114,15 @@ class PezPrompterMaximum:
         }
 
     CATEGORY = "Pez/Text"
-    RETURN_TYPES = ("STRING", "INT", "INT", "INT")
-    RETURN_NAMES = ("PROMPT_FINAL", "WIDTH", "HEIGHT", "VIDEO_FRAMES")
+    RETURN_TYPES = ("STRING", "INT", "INT", "INT", "STRING")
+    RETURN_NAMES = ("Prompt Combinado", "Ancho (Width)", "Alto (Height)", "Frames de Video", "Prompt Negativo")
     FUNCTION = "process"
 
-    def process(self, main_prompt, aspect_ratio, megapixels, multiple, duration_seconds, extra_tags=""):
-        # 1. Procesar Prompt
-        p = main_prompt.strip()
-        t = extra_tags.strip() if extra_tags else ""
+    def process(self, main_prompt, aspect_ratio, megapixels, multiple, duration_seconds, extra_tags="", negative_prompt=""):
+        # 1. Procesar Prompt Positivo y Negativo
+        p = (main_prompt or "").strip()
+        t = (extra_tags or "").strip()
+        neg = (negative_prompt or "").strip()
         
         final_prompt = ""
         if not p and not t:
@@ -147,33 +137,53 @@ class PezPrompterMaximum:
             final_prompt = f"{p}, {t}"
             
         # 2. Calcular Megapixeles -> Ancho y Alto
-        area = megapixels * 1_000_000
+        try:
+            mp_val = float(megapixels)
+        except (TypeError, ValueError):
+            mp_val = 0.4
+        area = mp_val * 1_000_000
         
-        if ":" in aspect_ratio:
-            w_ratio, h_ratio = aspect_ratio.split(":")
-            ar = float(w_ratio) / float(h_ratio)
+        ar_str = str(aspect_ratio or "16:9")
+        if ":" in ar_str:
+            try:
+                parts = ar_str.split(":")
+                w_ratio = float(parts[0])
+                h_ratio = float(parts[1])
+                ar = w_ratio / h_ratio if h_ratio != 0 else (16.0 / 9.0)
+            except (ValueError, ZeroDivisionError):
+                ar = 16.0 / 9.0
         else:
             ar = 1.0
             
+        try:
+            mult = int(multiple)
+        except (TypeError, ValueError):
+            mult = 32
+        if mult <= 0: mult = 32
+        
         h_exact = math.sqrt(area / ar)
         w_exact = h_exact * ar
         
-        width = int(round(w_exact / multiple) * multiple)
-        height = int(round(h_exact / multiple) * multiple)
+        width = int(round(w_exact / mult) * mult)
+        height = int(round(h_exact / mult) * mult)
 
         # 3. Calcular Frames para MiniMax (F + (5 - (F % 17)) % 17) a 24 FPS
-        base_frames = max(5, round(duration_seconds * 24))
+        try:
+            dur = float(duration_seconds)
+        except (TypeError, ValueError):
+            dur = 5.0
+        base_frames = max(5, round(dur * 24))
         mod_val = base_frames % 17
         add_val = (5 - mod_val) % 17
         video_frames = int(base_frames + add_val)
 
-        return (final_prompt, width, height, video_frames)
+        return (final_prompt, width, height, video_frames, neg)
 
 NODE_CLASS_MAPPINGS = {
     "PezLoadLoraWithTags": PezLoadLoraWithTags,
     "PezPrompterMaximum": PezPrompterMaximum
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PezLoadLoraWithTags": "Pez Load LoRA & Triggers",
-    "PezPrompterMaximum": "Pez Prompter Maximum"
+    "PezLoadLoraWithTags": "🐟 Pez Load LoRA & Triggers",
+    "PezPrompterMaximum": "🐟 Pez Prompter Maximum"
 }
