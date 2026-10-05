@@ -36,6 +36,8 @@ try:
                     dest_dir = comfy_out
                 elif os.path.isabs(target_dir):
                     dest_dir = target_dir
+                elif target_dir.lower().startswith("output/") or target_dir.lower().startswith("output\\"):
+                    dest_dir = os.path.join(comfy_out, target_dir[7:])
                 else:
                     dest_dir = os.path.join(comfy_out, target_dir)
 
@@ -331,6 +333,8 @@ class PezVideoSaveCompare:
                 target_dir = comfy_output_dir
             elif os.path.isabs(cleaned_out):
                 target_dir = cleaned_out
+            elif cleaned_out.lower().startswith("output/") or cleaned_out.lower().startswith("output\\"):
+                target_dir = os.path.join(comfy_output_dir, cleaned_out[7:])
             else:
                 target_dir = os.path.join(comfy_output_dir, cleaned_out)
 
