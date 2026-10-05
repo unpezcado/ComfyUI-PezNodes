@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import cv2
@@ -137,7 +138,39 @@ class PezVideoSaveCompare:
             print(f"[Pez Video Save] Advertencia: No se pudo exportar audio temporal: {e}")
             return False
 
-    def _encode_tensor_video(self, tensor_video, fps, out_path, ext, crf, audio_wav=None):
+    def _create_ffmetadata_file(self, temp_dir, prompt=None, extra_pnginfo=None):
+        try:
+            from comfy.cli_args import args
+            if getattr(args, "disable_metadata", False):
+                return None, None
+        except Exception:
+            pass
+
+        meta_dict = {}
+        if extra_pnginfo:
+            for k, v in extra_pnginfo.items():
+                meta_dict[k] = v if isinstance(v, str) else json.dumps(v)
+        if prompt:
+            meta_dict["prompt"] = prompt if isinstance(prompt, str) else json.dumps(prompt)
+
+        if not meta_dict:
+            return None, None
+
+        lines = [";FFMETADATA1\n"]
+        for k, v in meta_dict.items():
+            val_str = v.replace("\\", "\\\\")
+            val_str = val_str.replace(";", "\\;")
+            val_str = val_str.replace("#", "\\#")
+            val_str = val_str.replace("=", "\\=")
+            val_str = val_str.replace("\r\n", "\\n").replace("\n", "\\n")
+            lines.append(f"{k}={val_str}\n")
+
+        meta_path = os.path.join(temp_dir, f"temp_pez_meta_{int(time.time() * 1000)}.txt")
+        with open(meta_path, "w", encoding="utf-8") as mf:
+            mf.writelines(lines)
+        return meta_path, meta_dict
+
+    def _encode_tensor_video(self, tensor_video, fps, out_path, ext, crf, audio_wav=None, metadata_file=None, metadata_dict=None):
         num_frames, height, width, _ = tensor_video.shape
 
         pad_w = width % 2
@@ -166,9 +199,15 @@ class PezVideoSaveCompare:
             '-i', '-'
         ]
 
+        curr_input_idx = 1
         has_audio = audio_wav and os.path.exists(audio_wav)
         if has_audio:
             cmd.extend(['-i', audio_wav])
+            curr_input_idx += 1
+
+        has_meta = metadata_file and os.path.exists(metadata_file)
+        if has_meta:
+            cmd.extend(['-i', metadata_file, '-map_metadata', str(curr_input_idx)])
 
         if ext == '.mp4':
             cmd.extend([
@@ -176,7 +215,7 @@ class PezVideoSaveCompare:
                 '-pix_fmt', 'yuv420p',
                 '-crf', str(crf),
                 '-preset', 'fast',
-                '-movflags', '+faststart'
+                '-movflags', '+faststart+use_metadata_tags'
             ])
             if has_audio:
                 cmd.extend(['-c:a', 'aac', '-b:a', '192k', '-shortest'])
@@ -203,6 +242,9 @@ class PezVideoSaveCompare:
         try:
             import av
             container = av.open(out_path, mode='w', format='mp4' if ext == '.mp4' else 'webm')
+            if metadata_dict:
+                for k, v in metadata_dict.items():
+                    container.metadata[k] = v if isinstance(v, str) else json.dumps(v)
             stream = container.add_stream('h264' if ext == '.mp4' else 'vp9', rate=int(round(fps)))
             stream.width = width
             stream.height = height
@@ -338,7 +380,15 @@ class PezVideoSaveCompare:
             if self._export_audio_to_wav(audio, temp_wav):
                 audio_wav_path = temp_wav
 
-        self._encode_tensor_video(video, fps, final_filepath, ext, crf, audio_wav=audio_wav_path)
+        meta_file, meta_dict = self._create_ffmetadata_file(temp_dir, prompt=prompt, extra_pnginfo=extra_pnginfo)
+        try:
+            self._encode_tensor_video(video, fps, final_filepath, ext, crf, audio_wav=audio_wav_path, metadata_file=meta_file, metadata_dict=meta_dict)
+        finally:
+            if meta_file and os.path.exists(meta_file):
+                try:
+                    os.unlink(meta_file)
+                except Exception:
+                    pass
 
         preview_filename = final_filename
         preview_subfolder = ""

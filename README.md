@@ -1,5 +1,5 @@
 # ComfyUI-PezNodes 🐟
-**Versión Actual:** v1.3.0
+**Versión Actual:** v1.3.1
 
 Una suite completa de nodos personalizados para **ComfyUI** diseñada para potenciar y agilizar flujos de trabajo de video y animación generativa (especialmente optimizados para modelos como **MiniMax H3**, **LTX-Video**, **Wan 2.1**, **HunyuanVideo** y modelos de imagen como **SDXL** y **Flux**).
 
@@ -84,6 +84,7 @@ Previsualización de muestreo (sampling) en tiempo real para MiniMax H3.
 El nodo definitivo para guardar video con multiplexación de audio, formateo dinámico mediante etiquetas interactivas y reproductor comparativo A/B (Antes vs. Después) con divisor deslizable en tiempo real.
 
 **Características principales:**
+- **Preservación total de Workflow (Drag & Drop):** Inyecta automáticamente los metadatos del flujo (`workflow`) y árbol de generación (`prompt`) dentro del archivo MP4/WebM. Al arrastrar el video generado a cualquier ventana de ComfyUI (en cualquier PC), el lienzo reconstruye el flujo exacto al 100%.
 - **Compatibilidad universal de entrada (`IMAGE,VIDEO`):** Acepta directamente secuencias de fotogramas (`IMAGE`) o streams nativos de video (`VIDEO` de LTX-Video Decode). Desempaqueta automáticamente fotogramas, framerate y audio embebido del stream.
 - **Entradas completas:** Recibe el video (`video`), audio opcional (`audio`), nombre base (`name`) y video previo opcional (`video_previo`).
 - **Salida dual en cadena:** Entrega la `Ruta de Guardado (STRING)` y el `Video (IMAGE,VIDEO)` procesado para conectar downstream con otros nodos (como `Pez Video Trimmer`).
@@ -121,6 +122,10 @@ El nodo definitivo para guardar video con multiplexación de audio, formateo din
 ---
 
 ## 📋 Historial de Versiones
+
+- **v1.3.1:**
+  - **Corrección crítica de metadatos de Workflow:** Ahora todos los videos guardados (MP4 y WebM), ya sea mediante guardado directo o desde el botón de la previsualización, integran los metadatos completos de `workflow` y `prompt` mediante especificación estándar `FFMETADATA1` y etiquetas de contenedor (`moov.udta.meta.keys/ilst` y EBML Tags).
+  - Permite arrastrar el archivo de video generado a cualquier instalación de ComfyUI (en la misma máquina o en cualquier otra computadora) y reconstruir instantáneamente el flujo de trabajo completo.
 
 - **v1.3.0:**
   - Nuevo nodo: **`Pez Video Save & Compare`** (`🐟 Pez Video Save & Compare`): guardado de video con multiplexación de audio, formateo interactivo y comparador A/B.
