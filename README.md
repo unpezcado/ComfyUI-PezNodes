@@ -1,5 +1,5 @@
 # ComfyUI-PezNodes 🐟
-**Versión Actual:** v1.2.0
+**Versión Actual:** v1.3.0
 
 Una suite completa de nodos personalizados para **ComfyUI** diseñada para potenciar y agilizar flujos de trabajo de video y animación generativa (especialmente optimizados para modelos como **MiniMax H3**, **LTX-Video**, **Wan 2.1**, **HunyuanVideo** y modelos de imagen como **SDXL** y **Flux**).
 
@@ -80,6 +80,32 @@ Previsualización de muestreo (sampling) en tiempo real para MiniMax H3.
 
 ---
 
+### 7. 🐟 Pez Video Save & Compare
+El nodo definitivo para guardar video con multiplexación de audio, formateo dinámico mediante etiquetas interactivas y reproductor comparativo A/B (Antes vs. Después) con divisor deslizable en tiempo real.
+
+**Características principales:**
+- **Compatibilidad universal de entrada (`IMAGE,VIDEO`):** Acepta directamente secuencias de fotogramas (`IMAGE`) o streams nativos de video (`VIDEO` de LTX-Video Decode). Desempaqueta automáticamente fotogramas, framerate y audio embebido del stream.
+- **Entradas completas:** Recibe el video (`video`), audio opcional (`audio`), nombre base (`name`) y video previo opcional (`video_previo`).
+- **Salida dual en cadena:** Entrega la `Ruta de Guardado (STRING)` y el `Video (IMAGE,VIDEO)` procesado para conectar downstream con otros nodos (como `Pez Video Trimmer`).
+- **Modos de Guardado y Explorador:**
+  - `Guardar Video`: Codificación de alto rendimiento directamente en la carpeta de destino.
+  - `Solo Preview`: Genera previsualización ligera en la carpeta temporal de ComfyUI sin saturar el almacenamiento de disco.
+  - Botón interactivo `📁 EXPLORAR...`: Selección nativa de directorio en Windows.
+- **Sistema interactivo de Tags para el Nombre:** Botones de un solo clic para construir nombres ordenados automáticamente:
+  - `+ [name]`, `+ [date]`, `+ [time]`, `+ [counter]`, `+ [fps]`, `+ [width]`, `+ [height]`, `+ [duration]`, `+ [seed]`.
+  - Botones de acción: `🗑️ BORRAR ÚLTIMO` y `🔄 RESETEAR FORMATO`.
+  - **Vista previa dinámica en tiempo real:** Muestra exactamente cómo se llamará el archivo antes de pulsar la cola de ejecución.
+- **Configuración de Video con Botones:**
+  - Selector de Calidad: `Alta (CRF 20)`, `Máxima (CRF 17)`, `Media (CRF 24)`.
+  - Selector de Formato: `MP4 (H.264)` y `WebM (VP9)`.
+  - Selector de FPS: Campo numérico interactivo con flechas y soporte decimal.
+- **Reproductor con Comparador A/B (Antes / Después):**
+  - Si solo se conecta `video`: Reproductor de video integrado con controles nativos y reproducción en bucle.
+  - Si se conecta `video_previo`: Activa la vista dividida interactiva con línea vertical roja (`◀▶`) deslizable en tiempo real mediante máscara `clip-path`, sincronizando ambos videos al 100% de escala sin deformaciones ni reescalados.
+- **Distribución ergonómica de slots:** La entrada `video_previo` se sitúa en la parte inferior, directamente alineada con el visor comparativo.
+
+---
+
 ## 🚀 Instalación
 
 1. Navega al directorio de nodos personalizados de tu instalación de ComfyUI:
@@ -95,6 +121,15 @@ Previsualización de muestreo (sampling) en tiempo real para MiniMax H3.
 ---
 
 ## 📋 Historial de Versiones
+
+- **v1.3.0:**
+  - Nuevo nodo: **`Pez Video Save & Compare`** (`🐟 Pez Video Save & Compare`): guardado de video con multiplexación de audio, formateo interactivo y comparador A/B.
+  - Soporte de entrada y salida híbrida (`IMAGE,VIDEO`): compatibilidad directa con nodos de video como **LTX-Video** (`Decode`) y generadores basados en tensores `IMAGE`. Extracción automática de frames, FPS y pistas de audio embebidas.
+  - Salida dual (`Ruta de Guardado (STRING)`, `Video (IMAGE,VIDEO)`) para encadenar downstream en flujos complejos.
+  - Constructor dinámico de nomenclatura de archivos mediante botones de tags (`[name]`, `[date]`, `[time]`, `[counter]`, `[fps]`, etc.) con vista previa instantánea del nombre.
+  - Reproductor y comparador visual deslizante A/B (Antes vs. Después) con recorte CSS (`clip-path: inset()`) y manija de arrastre `◀▶` en tiempo real.
+  - Botón interactivo `📁 EXPLORAR...` para selección de directorios con el explorador nativo del sistema.
+  - Distribución ergonómica de slots en canvas: alineación de la entrada `video_previo` con la sección de previsualización.
 
 - **v1.2.0:**
   - Nuevo nodo: **`Pez Video Trimmer`** con reproductor integrado, recorte milimétrico, botonera de resolución y presets de motores AI (`Exacto`, `LTX-Video`, `WanVideo`).
@@ -118,6 +153,9 @@ Previsualización de muestreo (sampling) en tiempo real para MiniMax H3.
 ## 📸 Screenshots
 
 A continuación se muestran capturas de los nodos en acción dentro de ComfyUI:
+
+### 🐟 Pez Video Save & Compare
+![Pez Video Save & Compare](screenshots/pez_video_save.png)
 
 ### 🐟 Pez Video Trimmer
 ![Pez Video Trimmer](screenshots/pez_video_trimmer.png)
