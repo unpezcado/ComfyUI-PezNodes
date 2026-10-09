@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import cv2
@@ -17,18 +18,109 @@ try:
     from aiohttp import web
 
     if hasattr(PromptServer, "instance") and PromptServer.instance and hasattr(PromptServer.instance, "routes"):
+        @PromptServer.instance.routes.get("/pez/pick_folder")
+        async def pez_pick_folder_handler(request):
+            try:
+                import sys
+                import shutil
+                import subprocess
+                import asyncio
+                import folder_paths
+
+                start_path = request.query.get("path", "").strip()
+                comfy_out = os.path.abspath(folder_paths.get_output_directory())
+
+                def _open_dialog():
+                    init_dir = comfy_out
+                    if start_path:
+                        if os.path.isabs(start_path) and os.path.isdir(start_path):
+                            init_dir = start_path
+                        else:
+                            candidate = os.path.abspath(os.path.join(comfy_out, start_path))
+                            if os.path.isdir(candidate):
+                                init_dir = candidate
+
+                    if sys.platform == "win32":
+                        ps = (
+                            "Add-Type -AssemblyName System.Windows.Forms;"
+                            "$r='';"
+                            "$o=New-Object System.Windows.Forms.Form;"
+                            "$o.TopMost=$true;$o.ShowInTaskbar=$false;$o.FormBorderStyle='None';"
+                            "$o.Width=1;$o.Height=1;$o.Opacity=0;$o.StartPosition='CenterScreen';"
+                            "$o.Add_Shown({"
+                            "$o.Activate();"
+                            "$d=New-Object System.Windows.Forms.FolderBrowserDialog;"
+                            "$d.Description='Selecciona la carpeta de destino para guardar tus videos';"
+                            "$d.ShowNewFolderButton=$true;"
+                            "if($env:PEZ_START){try{$d.SelectedPath=$env:PEZ_START}catch{}};"
+                            "if($d.ShowDialog($o) -eq [System.Windows.Forms.DialogResult]::OK){$script:r=$d.SelectedPath};"
+                            "$o.Close()"
+                            "});"
+                            "[void]$o.ShowDialog();"
+                            "[Console]::Out.Write($r)"
+                        )
+                        env = dict(os.environ)
+                        env["PEZ_START"] = init_dir
+                        out = subprocess.run(
+                            ["powershell", "-NoProfile", "-STA", "-Command", ps],
+                            capture_output=True, text=True, timeout=300, env=env,
+                            creationflags=0x08000000,
+                        )
+                        return (out.stdout or "").strip()
+                    elif sys.platform == "darwin":
+                        script = f'POSIX path of (choose folder with prompt "Selecciona la carpeta de destino" default location POSIX file "{init_dir}")'
+                        out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=300)
+                        return (out.stdout or "").strip().rstrip("/") if out.returncode == 0 else ""
+                    else:
+                        if shutil.which("zenity"):
+                            out = subprocess.run(["zenity", "--file-selection", "--directory", f"--filename={init_dir}/"], capture_output=True, text=True, timeout=300)
+                            return (out.stdout or "").strip() if out.returncode == 0 else ""
+                        elif shutil.which("kdialog"):
+                            out = subprocess.run(["kdialog", "--getexistingdirectory", init_dir], capture_output=True, text=True, timeout=300)
+                            return (out.stdout or "").strip() if out.returncode == 0 else ""
+                        return ""
+
+                loop = asyncio.get_running_loop()
+                chosen_path = await loop.run_in_executor(None, _open_dialog)
+
+                if not chosen_path:
+                    return web.json_response({"success": False, "cancelled": True})
+
+                chosen_path = os.path.abspath(chosen_path)
+                
+                try:
+                    rel = os.path.relpath(chosen_path, comfy_out)
+                    if not rel.startswith("..") and rel != ".":
+                        display_path = rel.replace("\\", "/")
+                    elif rel == ".":
+                        display_path = "output"
+                    else:
+                        display_path = chosen_path.replace("\\", "/")
+                except Exception:
+                    display_path = chosen_path.replace("\\", "/")
+
+                return web.json_response({
+                    "success": True,
+                    "full_path": chosen_path.replace("\\", "/"),
+                    "display_path": display_path
+                })
+            except Exception as e:
+                return web.json_response({"success": False, "error": str(e)})
+
         @PromptServer.instance.routes.post("/pez/save_video_file")
         async def pez_save_video_file_handler(request):
             try:
                 data = await request.json()
-                temp_filename = data.get("temp_filename")
+                temp_filename = data.get("temp_filename") or data.get("filename")
+                subfolder = data.get("subfolder", "").strip()
                 target_dir = data.get("target_dir", "output").strip()
-                final_name = data.get("final_name", "PezVideo.mp4").strip()
+                final_name = data.get("final_name", "").strip()
 
                 temp_dir = folder_paths.get_temp_directory()
-                src_path = os.path.join(temp_dir, temp_filename)
+                src_path = os.path.join(temp_dir, subfolder, temp_filename) if subfolder else os.path.join(temp_dir, temp_filename)
                 if not os.path.exists(src_path):
-                    # Buscar en temp si tiene prefijo
+                    src_path = os.path.join(temp_dir, temp_filename)
+                if not os.path.exists(src_path):
                     return web.json_response({"success": False, "error": f"No se encontró el archivo temporal: {temp_filename}"})
 
                 comfy_out = folder_paths.get_output_directory()
@@ -42,9 +134,11 @@ try:
                     dest_dir = os.path.join(comfy_out, target_dir)
 
                 os.makedirs(dest_dir, exist_ok=True)
+                if not final_name:
+                    final_name = temp_filename
                 dest_path = os.path.join(dest_dir, final_name)
                 shutil.copyfile(src_path, dest_path)
-                return web.json_response({"success": True, "saved_path": dest_path})
+                return web.json_response({"success": True, "saved_path": dest_path, "saved_filename": os.path.basename(dest_path)})
             except Exception as e:
                 return web.json_response({"success": False, "error": str(e)})
 except Exception:
@@ -77,7 +171,7 @@ class PezVideoSaveCompare:
         }
 
     RETURN_TYPES = ("STRING", "IMAGE,VIDEO")
-    RETURN_NAMES = ("Ruta de Guardado (STRING)", "Video (IMAGE,VIDEO)")
+    RETURN_NAMES = ("ruta de guardado (string)", "video (image,video)")
     OUTPUT_NODE = True
     FUNCTION = "save_and_compare"
     CATEGORY = "Pez/Video"
@@ -140,6 +234,33 @@ class PezVideoSaveCompare:
             print(f"[Pez Video Save] Advertencia: No se pudo exportar audio temporal: {e}")
             return False
 
+    @staticmethod
+    def _json_safe(obj):
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        if isinstance(obj, dict):
+            return {str(k): PezVideoSaveCompare._json_safe(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [PezVideoSaveCompare._json_safe(v) for v in obj]
+        return obj
+
+    @staticmethod
+    def _escape_ffmetadata(value):
+        out = []
+        for ch in value:
+            if ch in ("=", ";", "#", "\\"):
+                out.append("\\")
+                out.append(ch)
+            elif ch == "\n":
+                out.append("\\\n")
+            elif ch == "\r":
+                pass
+            else:
+                out.append(ch)
+        return "".join(out)
+
     def _create_ffmetadata_file(self, temp_dir, prompt=None, extra_pnginfo=None):
         try:
             from comfy.cli_args import args
@@ -149,28 +270,32 @@ class PezVideoSaveCompare:
             pass
 
         meta_dict = {}
-        if extra_pnginfo:
-            for k, v in extra_pnginfo.items():
-                meta_dict[k] = v if isinstance(v, str) else json.dumps(v)
-        if prompt:
-            meta_dict["prompt"] = prompt if isinstance(prompt, str) else json.dumps(prompt)
+        if isinstance(extra_pnginfo, dict):
+            wf = extra_pnginfo.get("workflow")
+            if wf is not None:
+                meta_dict["workflow"] = wf
+        if prompt is not None:
+            meta_dict["prompt"] = prompt
 
         if not meta_dict:
             return None, None
 
-        lines = [";FFMETADATA1\n"]
-        for k, v in meta_dict.items():
-            val_str = v.replace("\\", "\\\\")
-            val_str = val_str.replace(";", "\\;")
-            val_str = val_str.replace("#", "\\#")
-            val_str = val_str.replace("=", "\\=")
-            val_str = val_str.replace("\r\n", "\\n").replace("\n", "\\n")
-            lines.append(f"{k}={val_str}\n")
+        try:
+            safe_tags = {k: json.dumps(self._json_safe(v)) for k, v in meta_dict.items()}
+        except Exception as e:
+            print(f"[Pez Video Save] Error serializando metadata: {e}")
+            return None, None
 
         meta_path = os.path.join(temp_dir, f"temp_pez_meta_{int(time.time() * 1000)}.txt")
-        with open(meta_path, "w", encoding="utf-8") as mf:
-            mf.writelines(lines)
-        return meta_path, meta_dict
+        try:
+            with open(meta_path, "w", encoding="utf-8") as mf:
+                mf.write(";FFMETADATA1\n")
+                for k, v in safe_tags.items():
+                    mf.write(f"{k}={self._escape_ffmetadata(v)}\n")
+            return meta_path, safe_tags
+        except Exception as e:
+            print(f"[Pez Video Save] Error guardando ffmetadata: {e}")
+            return None, None
 
     def _encode_tensor_video(self, tensor_video, fps, out_path, ext, crf, audio_wav=None, metadata_file=None, metadata_dict=None):
         num_frames, height, width, _ = tensor_video.shape
@@ -217,7 +342,7 @@ class PezVideoSaveCompare:
                 '-pix_fmt', 'yuv420p',
                 '-crf', str(crf),
                 '-preset', 'fast',
-                '-movflags', '+faststart+use_metadata_tags'
+                '-movflags', 'use_metadata_tags+faststart'
             ])
             if has_audio:
                 cmd.extend(['-c:a', 'aac', '-b:a', '192k', '-shortest'])
@@ -411,7 +536,7 @@ class PezVideoSaveCompare:
             try:
                 rel = os.path.relpath(target_dir, comfy_output_dir)
                 if not rel.startswith(".."):
-                    preview_subfolder = "" if rel == "." else rel
+                    preview_subfolder = ("" if rel == "." else rel).replace("\\", "/")
                     preview_type = "output"
                     preview_filename = final_filename
                 else:

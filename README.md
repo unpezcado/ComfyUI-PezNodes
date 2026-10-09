@@ -1,5 +1,5 @@
 # ComfyUI-PezNodes 🐟
-**Versión Actual:** v1.3.1
+**Versión Actual:** v1.4.0
 
 Una suite completa de nodos personalizados para **ComfyUI** diseñada para potenciar y agilizar flujos de trabajo de video y animación generativa (especialmente optimizados para modelos como **MiniMax H3**, **LTX-Video**, **Wan 2.1**, **HunyuanVideo** y modelos de imagen como **SDXL** y **Flux**).
 
@@ -19,7 +19,7 @@ El nodo definitivo para cargar, previsualizar, recortar y redimensionar video co
   - `LTX-Video (8N+1)`: Ajuste matemático para modelos que requieren múltiplos de 8 más 1 frame.
   - `WanVideo (4N+1)`: Ajuste matemático para modelos Wan que requieren múltiplos de 4 más 1 frame.
 - **Botón estilizado de carga:** Botón interactivo para subir videos desde el explorador con iluminación dinámica al pasar el cursor.
-- **Salidas múltiples:** Entrega video sin audio (`IMAGE`), solo audio (`AUDIO`), video combinado (`VIDEO`), FPS nativo, fotogramas totales, dimensiones (`Width`, `Height`) y duración exacta.
+- **Salidas múltiples:** Entrega video sin audio (`imagen`), solo audio (`audio`), video combinado (`video`), FPS nativo, fotogramas totales, dimensiones (`width`, `height`) y duración exacta.
 
 ---
 
@@ -43,7 +43,7 @@ El centro de control maestro para estructurar prompts, dimensiones y duración d
 - **Sección independiente de Tiempo:** Controla `duration_seconds` calculando internamente la cantidad exacta de fotogramas requeridos a 24 FPS para MiniMax H3 (`F + (5 - (F % 17)) % 17`).
 - **Doble frente de Prompts (Positivo y Negativo):**
   - `PROMPT POSITIVO`: Se combina inteligentemente con las etiquetas provenientes de `extra_tags` agregando comas y espacios limpios.
-  - `PROMPT NEGATIVO`: Campo multilínea independiente que pasa intacto a su propia salida `Prompt Negativo`, sin contaminación de tags.
+  - `PROMPT NEGATIVO`: Campo multilínea independiente que pasa intacto a su propia salida `prompt negativo`, sin contaminación de tags.
 - **Señalización visual limpia:** Indicadores de cabecera `← ENTRADAS` y `SALIDAS →`.
 
 ---
@@ -54,8 +54,8 @@ Elimina el problema clásico de los bordes con artefactos o "mordidos" (aliasing
 **Características principales:**
 - **Reconocimiento perfecto de transparencia:** Procesa el canal alfa y compone la imagen sobre un fondo sólido configurable (por defecto `#808080` gris neutro).
 - **Procesamiento híbrido:** Si la imagen cargada carece de canal alfa (como un JPG estándar), la transmite intacta sin alterar sus dimensiones.
-- **Botón de subida estilizado:** Botón DOM con diseño moderno e iluminación en rojo al rollover.
-- **Salidas separadas:** Entrega la imagen compuesta (`IMAGE`) y la máscara correspondiente (`MASK`).
+- **Botón de subida estilizado único:** Botón DOM con diseño moderno e iluminación en rojo al rollover, eliminando controles duplicados.
+- **Salidas separadas:** Entrega la imagen compuesta (`imagen`) y la máscara correspondiente (`máscara`).
 
 ---
 
@@ -65,16 +65,18 @@ Reemplazo optimizado para el cargador nativo de LoRA con extracción inteligente
 **Características principales:**
 - **Extracción de metadatos:** Lee los metadatos internos del archivo (`.safetensors`) extrayendo las palabras disparadoras configuradas durante el entrenamiento (Kohya, Civitai, A1111).
 - **Filtro Anti-Duplicados:** Permite añadir etiquetas manuales en `manual_tags`, combinándolas con las del archivo y eliminando repeticiones para no sobresaturar el prompt.
-- **Salida directa:** Salida `TAGS (Extra)` lista para conectar al socket `extra_tags` de `Pez Prompter Maximum`.
+- **Salida directa:** Salida `tags (extra)` lista para conectar al socket `extra_tags` de `Pez Prompter Maximum`.
 
 ---
 
 ### 6. 🐟 Pez MiniMax Preview
-Previsualización de muestreo (sampling) en tiempo real para MiniMax H3.
+Previsualización de muestreo (sampling) en tiempo real para modelos MiniMax H3 con telemetría integrada y diseño interactivo.
 
 **Características principales:**
 - **Denoising en vivo:** Visualiza cada paso del muestreo sin esperar al render final.
-- **Telemetría:** Muestra gráficas de Sigma/Delta (σ/Δ) y tiempo de ejecución por paso.
+- **Interruptor Toggle:** Control deslizable interactivo tipo switch para activar o desactivar la previsualización al instante.
+- **Botonera de Calidad de Render:** Presets de render interactivos de un solo toque: `Baja`, `Media` y `Alta` con feedback visual de selección activa.
+- **Telemetría y Diagnóstico Unificado:** Panel inferior centralizado que muestra gráficas de Sigma/Delta (σ/Δ), velocidad de cálculo por paso, resolución y estados del decodificador completamente en español.
 - **Protección contra desbordamiento:** Detección de fallos numéricos FP16 en resoluciones extremas y conmutación automática de decodificador para evitar pantallas negras.
 - **Auto-limpieza:** Mantiene el canvas limpio entre ejecuciones.
 
@@ -85,9 +87,9 @@ El nodo definitivo para guardar video con multiplexación de audio, formateo din
 
 **Características principales:**
 - **Preservación total de Workflow (Drag & Drop):** Inyecta automáticamente los metadatos del flujo (`workflow`) y árbol de generación (`prompt`) dentro del archivo MP4/WebM. Al arrastrar el video generado a cualquier ventana de ComfyUI (en cualquier PC), el lienzo reconstruye el flujo exacto al 100%.
-- **Compatibilidad universal de entrada (`IMAGE,VIDEO`):** Acepta directamente secuencias de fotogramas (`IMAGE`) o streams nativos de video (`VIDEO` de LTX-Video Decode). Desempaqueta automáticamente fotogramas, framerate y audio embebido del stream.
+- **Compatibilidad universal de entrada (`IMAGE,VIDEO`):** Acepta directamente secuencias de fotogramas (`imagen`) o streams nativos de video (`video` de LTX-Video Decode). Desempaqueta automáticamente fotogramas, framerate y audio embebido del stream.
 - **Entradas completas:** Recibe el video (`video`), audio opcional (`audio`), nombre base (`name`) y video previo opcional (`video_previo`).
-- **Salida dual en cadena:** Entrega la `Ruta de Guardado (STRING)` y el `Video (IMAGE,VIDEO)` procesado para conectar downstream con otros nodos (como `Pez Video Trimmer`).
+- **Salida dual en cadena:** Entrega la `ruta de guardado (STRING)` y el `video (IMAGE,VIDEO)` procesado para conectar downstream con otros nodos (como `Pez Video Trimmer`).
 - **Modos de Guardado y Explorador:**
   - `Guardar Video`: Codificación de alto rendimiento directamente en la carpeta de destino.
   - `Solo Preview`: Genera previsualización ligera en la carpeta temporal de ComfyUI sin saturar el almacenamiento de disco.
@@ -122,6 +124,18 @@ El nodo definitivo para guardar video con multiplexación de audio, formateo din
 ---
 
 ## 📋 Historial de Versiones
+
+- **v1.4.0:**
+  - **Unificación y estandarización completa de la suite:** Todos los textos de entradas y salidas (`modelo`, `clip`, `imagen`, `máscara`, `tags (extra)`, `video`, `audio`, etc.) han sido normalizados a minúsculas y traducidos al español para mayor coherencia visual y facilidad de uso.
+  - **Rediseño completo de `Pez MiniMax Preview`:**
+    - Nuevo control interruptor **Toggle Switch** interactivo para activar/desactivar la previsualización en vivo.
+    - Nueva botonera interactiva de **Calidad de Render** con selector exclusivo (`Baja`, `Media`, `Alta`).
+    - Panel unificado inferior de telemetría y diagnósticos en español (pasos, resolución, sigma/delta y velocidad).
+  - **Limpieza visual y alineación geométrica:**
+    - Reubicación de los rótulos `← ENTRADAS` y `SALIDAS →` inmediatamente debajo de la barra de título con margen vertical estandarizado.
+    - Ajuste de márgenes y espaciados en `Pez Prompter Maximum` y `Pez Load LoRA & Triggers`.
+    - Eliminación de controles duplicados en `Pez Load Transparent PNG` (botón único estilizado de selección de archivo).
+  - Actualización de todas las capturas de pantalla de la suite.
 
 - **v1.3.1:**
   - **Corrección crítica de metadatos de Workflow:** Ahora todos los videos guardados (MP4 y WebM), ya sea mediante guardado directo o desde el botón de la previsualización, integran los metadatos completos de `workflow` y `prompt` mediante especificación estándar `FFMETADATA1` y etiquetas de contenedor (`moov.udta.meta.keys/ilst` y EBML Tags).
@@ -162,17 +176,20 @@ A continuación se muestran capturas de los nodos en acción dentro de ComfyUI:
 ### 🐟 Pez Video Save & Compare
 ![Pez Video Save & Compare](screenshots/pez_video_save.png)
 
-### 🐟 Pez Video Trimmer
-![Pez Video Trimmer](screenshots/pez_video_trimmer.png)
-
-### 🐟 Pez Auto Batcher (Overnight)
-![Pez Auto Batcher](screenshots/pez_auto_batcher.png)
+### 🐟 Pez MiniMax Preview
+![Pez MiniMax Preview](screenshots/pez_minimax_preview.png)
 
 ### 🐟 Pez Prompter Maximum
 ![Pez Prompter Maximum](screenshots/pez_prompter_maximum.png)
+
+### 🐟 Pez Video Trimmer
+![Pez Video Trimmer](screenshots/pez_video_trimmer.png)
 
 ### 🐟 Pez Load Transparent PNG
 ![Pez Load Transparent PNG](screenshots/pez_load_transparent.png)
 
 ### 🐟 Pez Load LoRA & Triggers
 ![Pez Load LoRA & Triggers](screenshots/pez_load_lora_triggers.png)
+
+### 🐟 Pez Auto Batcher (Overnight)
+![Pez Auto Batcher](screenshots/pez_auto_batcher.png)

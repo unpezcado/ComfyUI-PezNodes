@@ -1,39 +1,246 @@
-// MiniMax H3 Preview Override — DOM widget for the PezMiniMaxPreview node.
-// Streams "pez_minimax_preview" events into a live preview area with a
-// sigma/delta graph, step-time graph, and hover/click step scrubbing.
+// 🐟 Pez MiniMax Preview — UI Customizada para MiniMax H3
+// Incluye branding Pez (Entradas/Salidas alineadas, toggle switch iOS/Android ON/OFF,
+// botonera de calidad Baja/Media/Alta, visualizador, telemetría unificada en español y gráficas σ/Δ y tiempo por paso).
+
 const { app } = window.comfyAPI.app;
 const { api } = window.comfyAPI.api;
 
-const STYLE_ID = "minimax-h3-pov-stylesheet";
+const STYLE_ID = "pez-minimax-preview-stylesheet";
 function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-.h3pov-root { display:flex; flex-direction:column; gap:6px; padding:6px; width:100%; height:100%;
-  box-sizing:border-box; background:#141414; border:1px solid #333; border-radius:8px; user-select:none; }
-.h3pov-header { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11px; color:#bbb; }
-.h3pov-title { font-weight:600; color:#9ecbff; letter-spacing:.3px; }
-.h3pov-summary { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#8a8a8a; }
-.h3pov-image-area { position:relative; flex:1; min-height:80px; background:repeating-conic-gradient(#181818 0% 25%, #1c1c1c 0% 50%) 50%/16px 16px;
-  border-radius:6px; overflow:hidden; cursor:pointer; }
-.h3pov-img, .h3pov-video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transition:opacity .12s ease; image-rendering: pixelated; }
-.h3pov-placeholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  color:#5a5a5a; font-size:12px; }
-.h3pov-scrub { position:absolute; left:0; right:0; bottom:0; height:6px; background:rgba(0,0,0,.45); cursor:pointer; display:none; }
-.h3pov-scrub-fill { height:100%; width:0%; background:linear-gradient(90deg,#e67e22,#f5a623); }
-.h3pov-graphs { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.h3pov-graph-cell { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:6px; padding:3px 5px; }
-.h3pov-graph-head { display:flex; justify-content:space-between; align-items:baseline; font-size:10px; color:#8a8a8a; }
-.h3pov-graph-label { white-space:nowrap; }
-.h3pov-graph-value { font-family:ui-monospace,Consolas,monospace; color:#d0d0d0; }
-.h3pov-graph-canvas { width:100%; height:38px; display:block; cursor:crosshair; }
-.h3pov-foot { font-size:10px; color:#666; text-align:center; }
+.pez-h3-root {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 6px 8px 8px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    background: #141414;
+    border: 1px solid #282828;
+    border-radius: 8px;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.pez-h3-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.pez-h3-header-label {
+    color: #ef4444;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 12px;
+}
+.pez-h3-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.pez-h3-toggle-row:hover {
+    background: #222222;
+    border-color: #383838;
+}
+.pez-h3-toggle-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.pez-h3-toggle-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #e5e5e5;
+}
+.pez-h3-toggle-status {
+    font-size: 10px;
+    font-weight: bold;
+    color: #ef4444;
+}
+.pez-h3-switch-track {
+    width: 44px;
+    height: 24px;
+    background: #ef4444;
+    border-radius: 12px;
+    position: relative;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.pez-h3-switch-thumb {
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 22px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    box-sizing: border-box;
+}
+.pez-h3-switch-track.off {
+    background: #333333;
+}
+.pez-h3-switch-thumb.off {
+    transform: translateX(-20px);
+}
+.pez-h3-quality-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.pez-h3-q-btn {
+    height: 26px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #161616;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    padding: 0 4px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.pez-h3-image-area {
+    position: relative;
+    width: 100%;
+    min-height: 200px;
+    height: 240px;
+    background: repeating-conic-gradient(#181818 0% 25%, #1c1c1c 0% 50%) 50%/16px 16px;
+    border: 1px solid #242424;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    box-sizing: border-box;
+    flex: 1;
+}
+.pez-h3-img, .pez-h3-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: opacity .12s ease;
+    image-rendering: pixelated;
+}
+.pez-h3-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 12px;
+}
+.pez-h3-scrub {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 6px;
+    background: rgba(0,0,0,.5);
+    cursor: pointer;
+    display: none;
+}
+.pez-h3-scrub-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ef4444, #f59e0b);
+}
+.pez-h3-stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #181818;
+    border: 1px solid #282828;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    box-sizing: border-box;
+}
+.pez-h3-stats-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #ef4444;
+}
+.pez-h3-stats-right {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 10.5px;
+    color: #a3a3a3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pez-h3-graphs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.pez-h3-graph-cell {
+    background: #181818;
+    border: 1px solid #282828;
+    border-radius: 6px;
+    padding: 5px 6px;
+    box-sizing: border-box;
+}
+.pez-h3-graph-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10px;
+    color: #888;
+    margin-bottom: 4px;
+}
+.pez-h3-graph-label {
+    white-space: nowrap;
+    font-weight: 600;
+}
+.pez-h3-graph-value {
+    font-family: ui-monospace, Consolas, monospace;
+    color: #d0d0d0;
+    font-size: 10.5px;
+}
+.pez-h3-graph-canvas {
+    width: 100%;
+    height: 48px;
+    display: block;
+    cursor: crosshair;
+}
+.pez-h3-foot {
+    font-size: 9.5px;
+    color: #666;
+    text-align: center;
+    line-height: 12px;
+}
 `;
     document.head.appendChild(style);
 }
 
-// Walks subgraph chain for ids like "12:7:5" (mirrors getNodeByExecutionId).
+// Búsqueda de nodo por ID en grafos y subgrafos
 function findNodeByQualifiedId(rootGraph, qid) {
     if (!rootGraph || !qid) return null;
     const parts = String(qid).split(":");
@@ -52,12 +259,23 @@ function findNodeByQualifiedId(rootGraph, qid) {
 
 const allPreviewNodes = new Set();
 
-api.addEventListener("pez_minimax_preview", (e) => {
+const handlePreviewEvent = (e) => {
     const data = e.detail;
-    if (!data || data.node_id == null) return;
-    const node = findNodeByQualifiedId(app.graph, data.node_id);
-    if (node?._h3PreviewHandler) node._h3PreviewHandler(data);
-});
+    if (!data) return;
+    let node = null;
+    if (data.node_id != null) {
+        node = findNodeByQualifiedId(app.graph, data.node_id);
+    }
+    if (!node && allPreviewNodes.size === 1) {
+        node = [...allPreviewNodes][0];
+    }
+    if (node?._h3PreviewHandler) {
+        node._h3PreviewHandler(data);
+    }
+};
+
+api.addEventListener("pez_minimax_preview", handlePreviewEvent);
+api.addEventListener("minimax_h3_preview_override", handlePreviewEvent);
 
 api.addEventListener("status", (e) => {
     if (e.detail && e.detail.exec_info && e.detail.exec_info.queue_remaining === 0) {
@@ -120,23 +338,43 @@ function syncCanvasDPR(canvas) {
     return { ctx, W: cssW, H: cssH };
 }
 
+function drawGrid(ctx, W, H, padX, padY) {
+    const iH = H - 2 * padY;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    for (let f = 0.25; f <= 0.75; f += 0.25) {
+        const y = Math.round(padY + f * iH) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(padX, y);
+        ctx.lineTo(W - padX, y);
+        ctx.stroke();
+    }
+}
+
 function drawGraph(canvas, sigmas, deltas, step, totalSteps, hoverStep, lockedStep) {
     const { ctx, W, H } = syncCanvasDPR(canvas);
-    const padX = GRAPH_PAD_X, padY = 3;
+    const padX = GRAPH_PAD_X, padY = 4;
     const iW = W - 2 * padX, iH = H - 2 * padY;
     ctx.clearRect(0, 0, W, H);
+    
+    // 1. Cuadrícula
+    drawGrid(ctx, W, H, padX, padY);
+
     const n = sigmas?.length || 0;
     const xSteps = Math.max(totalSteps || n, n, deltas?.length || 0);
     const xAt = i => padX + (i / Math.max(1, xSteps - 1)) * iW;
 
+    // 2. Curva Sigma
     if (n > 1) {
         let sMax = -Infinity, sMin = Infinity;
         for (const s of sigmas) { if (s > sMax) sMax = s; if (s < sMin) sMin = s; }
         if (sMin > 0) sMin = 0;
         const sRange = Math.max(sMax - sMin, 1e-6);
         const sYAt = v => padY + (1 - (v - sMin) / sRange) * iH;
+
         ctx.strokeStyle = "rgba(208,208,208,.55)";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
         for (let i = 0; i < n; i++) {
@@ -146,35 +384,52 @@ function drawGraph(canvas, sigmas, deltas, step, totalSteps, hoverStep, lockedSt
         }
         ctx.stroke();
         ctx.setLineDash([]);
-        const i = Math.max(0, Math.min(n - 1, step));
-        ctx.fillStyle = "#d0d0d0";
-        ctx.beginPath();
-        ctx.arc(padX + (i / Math.max(1, n - 1)) * iW, sYAt(sigmas[i]), 2.2, 0, Math.PI * 2);
-        ctx.fill();
+
+        // Punto activo en el paso actual
+        if (step != null && step >= 0) {
+            const idx = Math.max(0, Math.min(n - 1, step));
+            const px = padX + (idx / Math.max(1, n - 1)) * iW;
+            const py = sYAt(sigmas[idx]);
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
+    // 3. Área y línea Delta
     if (deltas && deltas.length >= 1) {
         let dMax = 1e-6;
         for (const v of deltas) if (Number.isFinite(v) && v > dMax) dMax = v;
         const dYAt = v => padY + (1 - v / dMax) * iH;
+        
         ctx.beginPath();
         ctx.moveTo(xAt(0), H - padY);
         ctx.lineTo(xAt(0), dYAt(deltas[0]));
-        for (let i = 0; i < deltas.length; i++) ctx.lineTo(xAt(i + 1), dYAt(deltas[i]));
+        for (let i = 0; i < deltas.length; i++) {
+            ctx.lineTo(xAt(i + 1), dYAt(deltas[i]));
+        }
         ctx.lineTo(xAt(deltas.length), H - padY);
         ctx.closePath();
-        ctx.fillStyle = "rgba(230,126,34,.15)";
+        ctx.fillStyle = "rgba(230,126,34,.22)";
         ctx.fill();
+
         ctx.strokeStyle = "#e67e22";
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         for (let i = 0; i < deltas.length; i++) {
             const px = xAt(i + 1), py = dYAt(deltas[i]);
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            if (i === 0) {
+                ctx.moveTo(xAt(0), dYAt(deltas[0]));
+                ctx.lineTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
         }
         ctx.stroke();
     }
 
+    // 4. Marcador de scrubbing / hover
     const mark = hoverStep != null ? hoverStep : lockedStep;
     if (mark != null && mark >= 0 && mark < xSteps) {
         ctx.strokeStyle = mark === lockedStep ? "rgba(245,200,60,.9)" : "rgba(208,208,208,.5)";
@@ -188,6 +443,153 @@ function drawGraph(canvas, sigmas, deltas, step, totalSteps, hoverStep, lockedSt
     }
 }
 
+function drawTimeGraph(canvas, stepTimes, step, totalSteps, hoverStep, lockedStep) {
+    const { ctx, W, H } = syncCanvasDPR(canvas);
+    const padX = GRAPH_PAD_X, padY = 4;
+    const iW = W - 2 * padX, iH = H - 2 * padY;
+    ctx.clearRect(0, 0, W, H);
+
+    // 1. Cuadrícula
+    drawGrid(ctx, W, H, padX, padY);
+
+    const count = stepTimes?.length || 0;
+    if (count === 0) return;
+
+    const xSteps = Math.max(totalSteps || count, count);
+    const xAt = i => padX + (i / Math.max(1, xSteps - 1)) * iW;
+
+    let tMax = 1e-6;
+    for (const v of stepTimes) if (Number.isFinite(v) && v > tMax) tMax = v;
+    const tYAt = v => padY + (1 - v / tMax) * iH;
+
+    // 2. Área y línea de tiempo por paso
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), H - padY);
+    ctx.lineTo(xAt(0), tYAt(stepTimes[0]));
+    for (let i = 0; i < count; i++) {
+        ctx.lineTo(xAt(i), tYAt(stepTimes[i]));
+    }
+    ctx.lineTo(xAt(count - 1), H - padY);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(230,126,34,.22)";
+    ctx.fill();
+
+    ctx.strokeStyle = "#e67e22";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+        const px = xAt(i), py = tYAt(stepTimes[i]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // 3. Marcador de scrubbing / hover
+    const mark = hoverStep != null ? hoverStep : lockedStep;
+    if (mark != null && mark >= 0 && mark < xSteps) {
+        ctx.strokeStyle = mark === lockedStep ? "rgba(245,200,60,.9)" : "rgba(208,208,208,.5)";
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash(mark === lockedStep ? [4, 2] : []);
+        ctx.beginPath();
+        ctx.moveTo(xAt(mark) + 0.5, padY);
+        ctx.lineTo(xAt(mark) + 0.5, H - padY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+// Configuración de geometría limpia de slots y encabezados
+function setupPezPreviewHooks(node) {
+    if (node._pez_preview_hooked) return;
+    node._pez_preview_hooked = true;
+
+    if (node.title && !node.title.startsWith("🐟")) {
+        node.title = "🐟 " + node.title.replace(/^🐟\s*/, "");
+    }
+
+    const normalizeSlots = (target) => {
+        if (target.inputs && target.inputs.length > 0) {
+            for (const inp of target.inputs) {
+                if (inp && (inp.name === "model" || inp.name === "MODEL" || inp.name === "MODELO" || inp.label === "model" || inp.label === "MODELO")) {
+                    inp.label = "modelo";
+                }
+                if (inp && (inp.name === "tinyvae" || inp.name === "TINY_VAE" || inp.label === "tinyvae" || inp.label === "TINY_VAE")) {
+                    inp.label = "tiny_vae";
+                }
+            }
+        }
+        if (target.outputs && target.outputs.length > 0) {
+            for (const out of target.outputs) {
+                if (out && (out.name === "model" || out.name === "MODEL" || out.name === "MODELO" || out.name === "modelo" || out.label === "model" || out.label === "MODELO" || out.label === "MODEL")) {
+                    out.name = "modelo";
+                    out.label = "modelo";
+                }
+            }
+        }
+    };
+    normalizeSlots(node);
+
+    const origConfigure = node.onConfigure;
+    node.onConfigure = function() {
+        if (origConfigure) origConfigure.apply(this, arguments);
+        normalizeSlots(this);
+    };
+
+    // Los widgets arrancan a y = 68 (inmediatamente debajo del slot tiny_vae a y=48, con margen limpio)
+    node.widgets_start_y = 68;
+
+    // Hook coordenadas de entrada (model a y=30, tiny_vae a y=48)
+    node.getInputPos = function(slot, out) {
+        out = out || new Float32Array(2);
+        out[0] = this.pos[0] + 10;
+        out[1] = this.pos[1] + 30 + (slot * 18);
+        return out;
+    };
+
+    // Hook coordenadas de salida (model a y=30)
+    node.getOutputPos = function(slot, out) {
+        out = out || new Float32Array(2);
+        out[0] = this.pos[0] + this.size[0] - 10;
+        out[1] = this.pos[1] + 30 + (slot * 18);
+        return out;
+    };
+
+    // Hook conexión de cables
+    node.getConnectionPos = function(isInput, slot_idx, out) {
+        if (isInput) return this.getInputPos(slot_idx, out);
+        return this.getOutputPos(slot_idx, out);
+    };
+
+    // Hook de dibujo en canvas:
+    // Ambos títulos exactamente alineados horizontalmente a y = 16 (con margen arriba de model a y=30)
+    const origDrawFg = node.onDrawForeground;
+    node.onDrawForeground = function(ctx) {
+        if (origDrawFg) origDrawFg.apply(this, arguments);
+        ctx.save();
+        ctx.fillStyle = "#ef4444";
+        ctx.font = "bold 9px sans-serif";
+
+        if (this.inputs && this.inputs.length > 0) {
+            ctx.textAlign = "left";
+            ctx.fillText("← ENTRADAS", 16, 16);
+        }
+
+        if (this.outputs && this.outputs.length > 0) {
+            ctx.textAlign = "right";
+            ctx.fillText("SALIDAS →", this.size[0] - 16, 16);
+        }
+
+        ctx.restore();
+    };
+
+    const origOnResize = node.onResize;
+    node.onResize = function(size) {
+        if (origOnResize) origOnResize.apply(this, arguments);
+        if (this.size[0] < 380) this.size[0] = 380;
+        if (this.size[1] < 600) this.size[1] = 600;
+        this.widgets_start_y = 68;
+    };
+}
+
 app.registerExtension({
     name: "Pez.MiniMaxPreview",
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -197,51 +599,178 @@ app.registerExtension({
             ensureStyles();
             const node = this;
             allPreviewNodes.add(node);
+            setupPezPreviewHooks(node);
 
-            const root = el("div", "h3pov-root");
-            const header = el("div", "h3pov-header", root);
-            const title = el("span", "h3pov-title", header);
-            title.textContent = "Pez MiniMax Preview";
-            const summary = el("span", "h3pov-summary", header);
-            summary.textContent = "idle";
+            // Ocultar widgets nativos del canvas para sustituirlos por la UI personalizada
+            for (const w of (node.widgets || [])) {
+                if (w.name === "enable_preview" || w.name === "quality") {
+                    w.computeSize = () => [0, -4];
+                    w.draw = () => {};
+                }
+            }
 
-            const imageArea = el("div", "h3pov-image-area", root);
-            const imgA = el("img", "h3pov-img", imageArea);
-            const imgB = el("img", "h3pov-img", imageArea);
+            const root = el("div", "pez-h3-root");
+
+            // 1. Control Toggle Switch iOS/Android: Habilitar / Deshabilitar Previsualización
+            const toggleSection = el("div", "pez-h3-section", root);
+            const toggleRow = el("div", "pez-h3-toggle-row", toggleSection);
+
+            const toggleLeft = el("div", "pez-h3-toggle-left", toggleRow);
+            const toggleTitle = el("span", "pez-h3-toggle-title", toggleLeft);
+            toggleTitle.textContent = "Previsualización en vivo";
+            const toggleStatus = el("span", "pez-h3-toggle-status", toggleLeft);
+            toggleStatus.textContent = "Activado";
+
+            const switchTrack = el("div", "pez-h3-switch-track", toggleRow);
+            const switchThumb = el("div", "pez-h3-switch-thumb", switchTrack);
+
+            const updateToggleUI = () => {
+                const w = node.widgets?.find(x => x.name === "enable_preview");
+                const isEnabled = w ? Boolean(w.value) : true;
+                if (isEnabled) {
+                    switchTrack.className = "pez-h3-switch-track";
+                    switchThumb.className = "pez-h3-switch-thumb";
+                    toggleStatus.style.color = "#ef4444";
+                    toggleStatus.textContent = "Activado";
+                } else {
+                    switchTrack.className = "pez-h3-switch-track off";
+                    switchThumb.className = "pez-h3-switch-thumb off";
+                    toggleStatus.style.color = "#888888";
+                    toggleStatus.textContent = "Desactivado";
+                }
+            };
+
+            toggleRow.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const w = node.widgets?.find(x => x.name === "enable_preview");
+                if (w) {
+                    w.value = !w.value;
+                    if (w.callback) w.callback(w.value);
+                }
+                updateToggleUI();
+                if (node.setDirtyCanvas) node.setDirtyCanvas(true, true);
+            };
+            updateToggleUI();
+
+            // 2. Control Botonera: Calidad de Rendering (Baja / Media / Alta)
+            const qualitySection = el("div", "pez-h3-section", root);
+            const qualityLabel = el("div", "pez-h3-header-label", qualitySection);
+            qualityLabel.textContent = "CALIDAD DE RENDERING";
+
+            const qualityGrid = el("div", "pez-h3-quality-grid", qualitySection);
+            const qualityOptions = ["Baja", "Media", "Alta"];
+            const qButtons = [];
+
+            qualityOptions.forEach(opt => {
+                const btn = el("button", "pez-h3-q-btn", qualityGrid);
+                btn.type = "button";
+                btn.textContent = opt;
+                btn.title = opt;
+
+                const updateQState = () => {
+                    const w = node.widgets?.find(x => x.name === "quality");
+                    const curVal = (w ? String(w.value) : "Alta").toLowerCase();
+                    const optLower = opt.toLowerCase();
+                    const isSelected = curVal === optLower || curVal.includes(optLower);
+                    btn.style.backgroundColor = isSelected ? "#b91c1c" : "#242424";
+                    btn.style.borderColor = isSelected ? "#ef4444" : "#161616";
+                    btn.style.color = isSelected ? "#ffffff" : "#9ca3af";
+                    btn.style.fontWeight = isSelected ? "bold" : "normal";
+                };
+                btn.updateQState = updateQState;
+                updateQState();
+
+                btn.onmouseenter = () => {
+                    const w = node.widgets?.find(x => x.name === "quality");
+                    const curVal = (w ? String(w.value) : "Alta").toLowerCase();
+                    const optLower = opt.toLowerCase();
+                    const isSelected = curVal === optLower || curVal.includes(optLower);
+                    btn.style.backgroundColor = isSelected ? "#dc2626" : "#303030";
+                    btn.style.borderColor = isSelected ? "#fca5a5" : "#ef4444";
+                    btn.style.color = "#ffffff";
+                };
+                btn.onmouseleave = () => {
+                    updateQState();
+                };
+
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const w = node.widgets?.find(x => x.name === "quality");
+                    if (w) {
+                        let targetVal = opt;
+                        const validVals = w.options?.values || [];
+                        if (validVals.length > 0) {
+                            const match = validVals.find(v => {
+                                const vStr = String(v).toLowerCase();
+                                const optStr = opt.toLowerCase();
+                                return vStr === optStr || vStr.includes(optStr);
+                            });
+                            if (match) targetVal = match;
+                        }
+                        w.value = targetVal;
+                        if (w.callback) w.callback(targetVal);
+                    }
+                    qButtons.forEach(b => b.updateQState && b.updateQState());
+                    if (node.setDirtyCanvas) node.setDirtyCanvas(true, true);
+                };
+
+                qButtons.push(btn);
+            });
+
+            // 3. Visualizador Central de Imagen / Video
+            const imageArea = el("div", "pez-h3-image-area", root);
+            const imgA = el("img", "pez-h3-img", imageArea);
+            const imgB = el("img", "pez-h3-img", imageArea);
             imgA.draggable = imgB.draggable = false;
             imgB.style.opacity = "0";
             let visibleImg = imgA;
             let pendingImg = imgB;
-            const videoEl = el("video", "h3pov-video", imageArea);
+
+            const videoEl = el("video", "pez-h3-video", imageArea);
             videoEl.style.opacity = "0";
             videoEl.muted = true;
             videoEl.playsInline = true;
             videoEl.loop = true;
             videoEl.autoplay = true;
             videoEl.disablePictureInPicture = true;
-            const placeholder = el("div", "h3pov-placeholder", imageArea);
-            placeholder.textContent = "waiting for sample…";
-            const scrubBar = el("div", "h3pov-scrub", imageArea);
-            const scrubFill = el("div", "h3pov-scrub-fill", scrubBar);
 
-            const graphs = el("div", "h3pov-graphs", root);
-            function makeCell(labelText) {
-                const cell = el("div", "h3pov-graph-cell", graphs);
-                const head = el("div", "h3pov-graph-head", cell);
-                const lbl = el("span", "h3pov-graph-label", head);
-                lbl.textContent = labelText;
-                const val = el("span", "h3pov-graph-value", head);
-                const canvas = el("canvas", "h3pov-graph-canvas", cell);
+            const placeholder = el("div", "pez-h3-placeholder", imageArea);
+            placeholder.textContent = "Esperando muestreo…";
+            const scrubBar = el("div", "pez-h3-scrub", imageArea);
+            const scrubFill = el("div", "pez-h3-scrub-fill", scrubBar);
+
+            // 4. Barra Inferior de Telemetría y Progreso (Todo concentrado abajo)
+            const statsBar = el("div", "pez-h3-stats-bar", root);
+            const statsLeft = el("div", "pez-h3-stats-left", statsBar);
+            statsLeft.textContent = "En reposo";
+            const statsRight = el("div", "pez-h3-stats-right", statsBar);
+            statsRight.textContent = "—";
+
+            // 5. Ventanas Inferiores de Gráficos (σ / Δ y Tiempo por paso)
+            const graphs = el("div", "pez-h3-graphs", root);
+            function makeCell(labelHtml) {
+                const cell = el("div", "pez-h3-graph-cell", graphs);
+                const head = el("div", "pez-h3-graph-head", cell);
+                const lbl = el("span", "pez-h3-graph-label", head);
+                lbl.innerHTML = labelHtml;
+                const val = el("span", "pez-h3-graph-value", head);
+                const canvas = el("canvas", "pez-h3-graph-canvas", cell);
                 return { canvas, val, lbl };
             }
-            const sdCell = makeCell("σ / Δ");
-            const timeCell = makeCell("step time");
-            el("div", "h3pov-foot", root).textContent = "hover σ/Δ graph to scrub steps · click to lock";
 
-            node.addDOMWidget("h3_preview", "minimax_h3_preview", root, { serialize: false });
-            node.setSize([Math.max(node.size?.[0] ?? 340, 340), Math.max(node.size?.[1] ?? 400, 400)]);
+            const sdCell = makeCell('<span style="color:#d0d0d0">σ (Ruido)</span> <span style="color:#666">/</span> <span style="color:#e67e22">Δ (Cambio)</span>');
+            const timeCell = makeCell('Tiempo por paso');
 
-            // Per-run state.
+            const footnote = el("div", "pez-h3-foot", root);
+            footnote.textContent = "Pasa el cursor sobre la gráfica para explorar los pasos · Clic para fijar";
+
+            // Registrar DOM Widget en el nodo
+            node.addDOMWidget("h3_preview", "pez_minimax_preview_dom", root, { serialize: false });
+            node.setSize([Math.max(node.size?.[0] ?? 380, 380), Math.max(node.size?.[1] ?? 600, 600)]);
+
+            // Estado interno del render
             let hoverStep = null;
             let lockedStep = null;
             let lastCurrentStep = -1;
@@ -322,36 +851,58 @@ app.registerExtension({
                 }
             }
 
-            const fpsWidget = () => node.widgets?.find(w => w.name === "preview_fps");
             function currentFps() {
-                const v = +fpsWidget()?.value;
-                return Number.isFinite(v) && v > 0 ? v : 12;
+                return 12;
             }
 
             function renderStats() {
-                const tIdx = lastCurrentStep - 1;
-                const stepMs = (tIdx >= 0 && tIdx < history.stepMs.length) ? history.stepMs[tIdx] : null;
+                const tIdx = (hoverStep != null ? hoverStep : (lockedStep != null ? lockedStep : lastCurrentStep)) - 1;
+                const stepMs = (tIdx >= 0 && tIdx < history.stepMs.length)
+                    ? history.stepMs[tIdx]
+                    : (history.stepMs.length > 0 ? history.stepMs[history.stepMs.length - 1] : lastStepMs);
+                
                 const avgTxt = lastAvgStepMs != null
-                    ? `${(lastAvgStepMs / 1000).toFixed(2)}s/step` : "—";
+                    ? `${(lastAvgStepMs / 1000).toFixed(2)}s/paso` : "—";
+                
                 let eta = "";
                 if (lastAvgStepMs != null && lastTotal != null && lastStep != null) {
-                    eta = ` · ETA ${((lastTotal - lastStep) * lastAvgStepMs / 1000).toFixed(1)}s`;
+                    const remaining = Math.max(0, lastTotal - lastStep);
+                    eta = ` · Restante: ~${(remaining * lastAvgStepMs / 1000).toFixed(1)}s`;
                 }
-                const timeTxt = stepMs != null ? `${stepMs.toFixed(0)}ms` : "—";
+
+                // Valor numérico de tiempo por paso
+                const timeTxt = (stepMs != null && Number.isFinite(stepMs))
+                    ? (stepMs >= 1000 ? `${(stepMs / 1000).toFixed(2)} s` : `${stepMs.toFixed(0)} ms`)
+                    : "—";
                 timeCell.val.textContent = timeTxt;
+
+                // Valor numérico de Sigma / Delta
                 let sd = "—";
-                if (cachedSigmas) {
+                if (cachedSigmas && cachedSigmas.length > 0) {
                     const idx = hoverStep != null ? hoverStep : (lockedStep != null ? lockedStep : lastCurrentStep);
-                    const sig = cachedSigmas[Math.min(idx, cachedSigmas.length - 1)];
-                    const d = (idx - 1 >= 0 && history.delta[idx - 1] != null) ? history.delta[idx - 1] : null;
+                    const safeIdx = Math.max(0, Math.min(idx, cachedSigmas.length - 1));
+                    const sig = cachedSigmas[safeIdx];
+                    const dIdx = Math.max(0, safeIdx - 1);
+                    const d = (history.delta && history.delta.length > dIdx)
+                        ? history.delta[dIdx]
+                        : (history.delta.length > 0 ? history.delta[history.delta.length - 1] : null);
                     sd = `${fmt(sig, 3)} / ${fmt(d, 3)}`;
                 }
                 sdCell.val.textContent = sd;
-                summary.textContent = `${lastW ?? "—"}×${lastH ?? "—"} · ${lastStep ?? 0}/${lastTotal ?? 0} · ${avgTxt}${eta}`;
+
+                // Barra unificada inferior
+                if (lastStep > 0 && lastTotal > 0) {
+                    statsLeft.innerHTML = `● Paso ${lastStep} / ${lastTotal}`;
+                    statsRight.textContent = `${lastW ?? "—"}×${lastH ?? "—"} · ${avgTxt}${eta}`;
+                } else {
+                    statsLeft.textContent = "En reposo";
+                    statsRight.textContent = "—";
+                }
             }
 
             function drawAll() {
                 drawGraph(sdCell.canvas, cachedSigmas, history.delta, lastCurrentStep, totalSteps, hoverStep, lockedStep);
+                drawTimeGraph(timeCell.canvas, history.stepMs, lastCurrentStep, totalSteps, hoverStep, lockedStep);
                 renderStats();
             }
 
@@ -368,12 +919,12 @@ app.registerExtension({
                 lastCurrentStep = -1;
                 totalSteps = 0;
                 lastStepMs = null;
+                lastAvgStepMs = null;
                 bakedFps = null;
                 hideVideo();
                 liveUrl = null;
                 liveMime = null;
                 
-                // Limpiar imagenes
                 visibleImg.src = "";
                 visibleImg.style.opacity = "0";
                 pendingImg.src = "";
@@ -382,24 +933,25 @@ app.registerExtension({
                 if (!placeholder.parentNode) {
                     imageArea.appendChild(placeholder);
                 }
-                placeholder.textContent = "waiting for sample…";
+                placeholder.textContent = "Esperando muestreo…";
                 scrubBar.style.display = "none";
                 
-                // Limpiar textos
-                summary.textContent = "idle";
+                statsLeft.textContent = "En reposo";
+                statsRight.textContent = "—";
                 sdCell.val.textContent = "—";
                 timeCell.val.textContent = "—";
                 
-                // Limpiar graficas
                 cachedSigmas = null;
                 const r1 = syncCanvasDPR(sdCell.canvas);
                 r1.ctx.clearRect(0, 0, r1.W, r1.H);
+                drawGrid(r1.ctx, r1.W, r1.H, GRAPH_PAD_X, 4);
                 const r2 = syncCanvasDPR(timeCell.canvas);
                 r2.ctx.clearRect(0, 0, r2.W, r2.H);
+                drawGrid(r2.ctx, r2.W, r2.H, GRAPH_PAD_X, 4);
             }
             node._h3Clear = resetRun;
 
-            // Animated playback scrub (WebP plays natively in <img>; MP4 in <video>).
+            // Scrubbing de animación
             function clipDurationMs() {
                 if (currentVideoUrl && Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
                     return videoEl.duration * 1000;
@@ -421,6 +973,7 @@ app.registerExtension({
                 }
             }
             requestAnimationFrame(tickScrub);
+
             scrubBar.addEventListener("mousedown", (ev) => {
                 if (ev.button !== 0) return;
                 ev.stopPropagation();
@@ -440,6 +993,7 @@ app.registerExtension({
                 document.addEventListener("mousemove", move);
                 document.addEventListener("mouseup", up);
             });
+
             imageArea.addEventListener("click", (ev) => {
                 if (scrubBar.contains(ev.target)) return;
                 if (clipDurationMs() <= 0) return;
@@ -448,12 +1002,12 @@ app.registerExtension({
                 else videoEl.pause();
             });
 
-            // σ/Δ graph: hover to scrub, click to lock.
+            // Interactividad en gráfica σ/Δ: Hover para explorar, clic para fijar
             sdCell.canvas.addEventListener("mousemove", (ev) => {
-                if (!cachedSigmas) return;
+                if (!cachedSigmas && !history.delta.length) return;
                 const rect = sdCell.canvas.getBoundingClientRect();
                 const iW = Math.max(1, rect.width - 2 * GRAPH_PAD_X);
-                const xSteps = Math.max(totalSteps || cachedSigmas.length, cachedSigmas.length, history.delta.length);
+                const xSteps = Math.max(totalSteps || cachedSigmas?.length || 0, cachedSigmas?.length || 0, history.delta.length);
                 const fx = (ev.clientX - rect.left - GRAPH_PAD_X) / iW;
                 const idx = Math.max(0, Math.min(xSteps - 1, Math.round(fx * (xSteps - 1))));
                 if (idx !== hoverStep) {
@@ -474,10 +1028,47 @@ app.registerExtension({
                 ev.stopPropagation();
                 if (lockedStep != null) {
                     lockedStep = null;
-                } else if (cachedSigmas) {
+                } else if (cachedSigmas || history.delta.length > 0) {
                     const rect = sdCell.canvas.getBoundingClientRect();
                     const iW = Math.max(1, rect.width - 2 * GRAPH_PAD_X);
-                    const xSteps = Math.max(totalSteps || cachedSigmas.length, cachedSigmas.length, history.delta.length);
+                    const xSteps = Math.max(totalSteps || cachedSigmas?.length || 0, cachedSigmas?.length || 0, history.delta.length);
+                    const fx = (ev.clientX - rect.left - GRAPH_PAD_X) / iW;
+                    lockedStep = Math.max(0, Math.min(xSteps - 1, Math.round(fx * (xSteps - 1))));
+                }
+                displayScrubStep();
+                drawAll();
+            });
+
+            // Interactividad en gráfica Tiempo por paso: Hover para explorar, clic para fijar
+            timeCell.canvas.addEventListener("mousemove", (ev) => {
+                if (!history.stepMs.length && !cachedSigmas) return;
+                const rect = timeCell.canvas.getBoundingClientRect();
+                const iW = Math.max(1, rect.width - 2 * GRAPH_PAD_X);
+                const xSteps = Math.max(totalSteps || 0, history.stepMs.length, cachedSigmas?.length || 0);
+                const fx = (ev.clientX - rect.left - GRAPH_PAD_X) / iW;
+                const idx = Math.max(0, Math.min(xSteps - 1, Math.round(fx * (xSteps - 1))));
+                if (idx !== hoverStep) {
+                    hoverStep = idx;
+                    displayScrubStep();
+                    drawAll();
+                }
+            });
+            timeCell.canvas.addEventListener("mouseleave", () => {
+                if (hoverStep != null) {
+                    hoverStep = null;
+                    if (lockedStep == null) displayScrubStep();
+                    drawAll();
+                }
+            });
+            timeCell.canvas.addEventListener("click", (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (lockedStep != null) {
+                    lockedStep = null;
+                } else if (history.stepMs.length > 0 || cachedSigmas) {
+                    const rect = timeCell.canvas.getBoundingClientRect();
+                    const iW = Math.max(1, rect.width - 2 * GRAPH_PAD_X);
+                    const xSteps = Math.max(totalSteps || 0, history.stepMs.length, cachedSigmas?.length || 0);
                     const fx = (ev.clientX - rect.left - GRAPH_PAD_X) / iW;
                     lockedStep = Math.max(0, Math.min(xSteps - 1, Math.round(fx * (xSteps - 1))));
                 }
@@ -508,7 +1099,7 @@ app.registerExtension({
                     lastCurrentStep = data.step;
                     drawAll();
                 } catch (err) {
-                    console.warn("[MiniMaxH3.PreviewOverride] decode failed:", err);
+                    console.warn("[PezMiniMaxPreview] decode failed:", err);
                 }
             };
             node._h3PreviewHandler = handler;
@@ -544,6 +1135,3 @@ app.registerExtension({
         });
     },
 });
-
-
-

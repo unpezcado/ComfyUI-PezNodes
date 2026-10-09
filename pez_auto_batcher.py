@@ -30,7 +30,7 @@ class PezAutoBatcher:
         }
     
     RETURN_TYPES = ("IMAGE", "AUDIO", "VIDEO", "FLOAT", "INT", "INT", "INT", "FLOAT")
-    RETURN_NAMES = ("Video sin audio (IMAGE)", "Solo Audio (AUDIO)", "Video + Audio (VIDEO)", "Velocidad (FPS)", "Total Fotogramas", "Ancho (Width)", "Alto (Height)", "Duración (Segundos)")
+    RETURN_NAMES = ("video sin audio (image)", "solo audio (audio)", "video + audio (video)", "velocidad (fps)", "total fotogramas", "ancho (width)", "alto (height)", "duración (segundos)")
     FUNCTION = "process_batch"
     CATEGORY = "Pez/Video"
 

@@ -27,7 +27,7 @@ class PezVideoTrimmer:
         
         return {
             "required": {
-                "video": (sorted(video_files), {"video_upload": True}),
+                "video": (sorted(video_files), {}),
                 "start_second": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 99999.0, "step": 0.1}),
                 "end_second": ("FLOAT", {"default": 60.0, "min": 0.1, "max": 99999.0, "step": 0.1}),
                 "resolution": (["Original", "1920x1080", "1280x720", "1024x1024", "768x768", "512x512", "512x768", "768x512"], {"default": "Original", "pez_button": True}),
@@ -42,7 +42,7 @@ class PezVideoTrimmer:
         }
     
     RETURN_TYPES = ("IMAGE", "AUDIO", "VIDEO", "FLOAT", "INT", "INT", "INT", "FLOAT")
-    RETURN_NAMES = ("Video sin audio (IMAGE)", "Solo Audio (AUDIO)", "Video + Audio (VIDEO)", "Velocidad (FPS)", "Total Fotogramas", "Ancho (Width)", "Alto (Height)", "Duraci\u00f3n (Segundos)")
+    RETURN_NAMES = ("video (image)", "audio (audio)", "video (video)", "fps", "total frames", "ancho (w)", "alto (h)", "duración (s)")
     FUNCTION = "trim_video"
     CATEGORY = "Pez/Video"
 

@@ -418,10 +418,9 @@ class _H3PreviewOverrideWrapper:
         state = {"last_video_gpu": None, "last_time": None, "step_ms_window": []}
         total_steps_init = max(0, len(sigmas_list) - 1)
 
-        # Boundary-0 message: sigma schedule (required by JS) plus optional noise preview.
         if node_id is not None and PromptServer is not None:
             init_payload = {
-                "node_id": node_id,
+                "node_id": str(node_id),
                 "step": 0,
                 "total": total_steps_init,
                 "sigma": sigmas_list[0] if sigmas_list else None,
@@ -446,6 +445,7 @@ class _H3PreviewOverrideWrapper:
                     init_payload["h"] = pil_init.height
             except Exception as e:
                 logging.warning(f"Initial noise preview failed (sigmas still sent): {e}")
+            PromptServer.instance.send_sync("pez_minimax_preview", init_payload, PromptServer.instance.client_id)
             PromptServer.instance.send_sync("minimax_h3_preview_override", init_payload, PromptServer.instance.client_id)
 
         encoder = _AsyncPreviewEncoder()
@@ -552,25 +552,23 @@ class _H3PreviewOverrideWrapper:
                             if not b64:
                                 return
 
-                            PromptServer.instance.send_sync(
-                                "minimax_h3_preview_override",
-                                {
-                                    "node_id": node_id,
-                                    "image": b64,
-                                    "mime": mime,
-                                    "w": w_,
-                                    "h": h_,
-                                    "step": sent_step,
-                                    "total": total_steps_,
-                                    "sigma": sigma_val,
-                                    "sigmas": None,
-                                    "delta": delta_v,
-                                    "step_ms": step_ms,
-                                    "avg_step_ms": avg_step_ms,
-                                    "fps": anim_fps if mime in ("video/mp4", "image/webp") else None,
-                                },
-                                PromptServer.instance.client_id,
-                            )
+                            payload = {
+                                "node_id": str(node_id),
+                                "image": b64,
+                                "mime": mime,
+                                "w": w_,
+                                "h": h_,
+                                "step": sent_step,
+                                "total": total_steps_,
+                                "sigma": sigma_val,
+                                "sigmas": None,
+                                "delta": delta_v,
+                                "step_ms": step_ms,
+                                "avg_step_ms": avg_step_ms,
+                                "fps": anim_fps if mime in ("video/mp4", "image/webp") else None,
+                            }
+                            PromptServer.instance.send_sync("pez_minimax_preview", payload, PromptServer.instance.client_id)
+                            PromptServer.instance.send_sync("minimax_h3_preview_override", payload, PromptServer.instance.client_id)
 
                         encoder.submit(_encode_and_send)
                 except Exception as e:
@@ -663,33 +661,37 @@ class PezMiniMaxPreview:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "model": ("MODEL", {"tooltip": "El modelo Minimax a previsualizar."}),
-                "enable_preview": ("BOOLEAN", {"default": True, "label_on": "true", "label_off": "false"}),
-                "quality": (["Low (Baja)", "Medium (Media)", "High (Alta)"], {"default": "High (Alta)"}),
+                "modelo": ("MODEL", {"tooltip": "El modelo base a previsualizar."}),
+                "enable_preview": ("BOOLEAN", {"default": True, "label_on": "Habilitado", "label_off": "Deshabilitado", "tooltip": "Activa o desactiva la previsualización en tiempo real."}),
+                "quality": (["Low (Baja)", "Medium (Media)", "High (Alta)", "Baja", "Media", "Alta"], {"default": "High (Alta)", "tooltip": "Calidad y resolución de la previsualización."}),
             },
             "optional": {
-                "tiny_vae": ("VAE", {"tooltip": "Opcional: Si tienes un Tiny VAE especÃƒÂ­fico, conÃƒÂ©ctalo aquÃƒÂ­."}),
+                "tiny_vae": ("VAE", {"tooltip": "Opcional: Si tienes un Tiny VAE específico (ej. TAEH3), conéctalo aquí."}),
             },
             "hidden": {"unique_id": "UNIQUE_ID"}
         }
 
     RETURN_TYPES = ("MODEL",)
-    RETURN_NAMES = ("MODELO",)
+    RETURN_NAMES = ("modelo",)
     FUNCTION = "execute"
     CATEGORY = "Pez/MiniMax"
 
-    def execute(self, model, enable_preview, quality, tiny_vae=None, unique_id=None):
+    def execute(self, modelo=None, enable_preview=True, quality="High (Alta)", tiny_vae=None, unique_id=None, model=None, **kwargs):
+        target_model = modelo if modelo is not None else model
         if not enable_preview:
-            return (model,)
+            return (target_model,)
         
-        m = model.clone()
+        m = target_model.clone()
         
         q_map = {
+            "Baja": (256, 1, 12, 60),
             "Low (Baja)": (256, 1, 12, 60),
+            "Media": (512, 3, 12, 75),
             "Medium (Media)": (512, 3, 12, 75),
+            "Alta": (768, 6, 12, 85),
             "High (Alta)": (768, 6, 12, 85)
         }
-        max_res, anim_frames, anim_fps, jpeg_q = q_map.get(quality, q_map["High (Alta)"])
+        max_res, anim_frames, anim_fps, jpeg_q = q_map.get(quality, q_map["Alta"])
         
         vae_name = "taeh3_decoder.safetensors"
         if tiny_vae is None and vae_name:
@@ -716,7 +718,7 @@ NODE_CLASS_MAPPINGS = {
     "PezMiniMaxPreview": PezMiniMaxPreview
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PezMiniMaxPreview": "Pez MiniMax Preview"
+    "PezMiniMaxPreview": "🐟 Pez MiniMax Preview"
 }
 
 

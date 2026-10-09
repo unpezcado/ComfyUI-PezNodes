@@ -280,8 +280,8 @@ function setupPezVideoSaveUI(node) {
     const origGetInputPos = node.getInputPos;
     node.getInputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        const ys = [42, 60, 78, 526];
-        const y = (ys[slot] !== undefined) ? ys[slot] : (92 + slot * 18);
+        const ys = [30, 48, 66, 526];
+        const y = (ys[slot] !== undefined) ? ys[slot] : (30 + slot * 18);
         out[0] = this.pos[0] + 10;
         out[1] = this.pos[1] + y;
         return out;
@@ -290,8 +290,8 @@ function setupPezVideoSaveUI(node) {
     const origGetOutputPos = node.getOutputPos;
     node.getOutputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        const ys = [42, 60];
-        const y = (ys[slot] !== undefined) ? ys[slot] : (42 + slot * 18);
+        const ys = [30, 48];
+        const y = (ys[slot] !== undefined) ? ys[slot] : (30 + slot * 18);
         out[0] = this.pos[0] + this.size[0] - 10;
         out[1] = this.pos[1] + y;
         return out;
@@ -313,7 +313,7 @@ function setupPezVideoSaveUI(node) {
         applySlotPositions(this);
     };
 
-    // Hook Canvas: Dibujar marcas justo al inicio sin margen excesivo (y = 28)
+    // Hook Canvas: Dibujar marcas justo al inicio debajo del encabezado (y = 16)
     const origDrawFg = node.onDrawForeground;
     node.onDrawForeground = function(ctx) {
         if (origDrawFg) origDrawFg.apply(this, arguments);
@@ -323,12 +323,12 @@ function setupPezVideoSaveUI(node) {
 
         if (this.inputs && this.inputs.length > 0) {
             ctx.textAlign = "left";
-            ctx.fillText("← ENTRADAS", 16, 28);
+            ctx.fillText("← ENTRADAS", 16, 16);
         }
 
         if (this.outputs && this.outputs.length > 0) {
             ctx.textAlign = "right";
-            ctx.fillText("SALIDAS →", this.size[0] - 16, 28);
+            ctx.fillText("SALIDAS →", this.size[0] - 16, 16);
         }
 
         ctx.restore();
@@ -420,28 +420,36 @@ function setupPezVideoSaveUI(node) {
     browseBtn.onclick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        const prevText = browseBtn.textContent;
+        browseBtn.textContent = "⏳ Abriendo...";
         try {
-            if (window.showDirectoryPicker) {
-                const dirHandle = await window.showDirectoryPicker();
-                if (dirHandle && dirHandle.name) {
-                    dirInput.value = dirHandle.name;
+            const currentVal = dirInput.value.trim();
+            const res = await fetch(`/pez/pick_folder?path=${encodeURIComponent(currentVal)}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.display_path) {
+                    dirInput.value = data.display_path;
                     if (wOutputDir) {
-                        wOutputDir.value = dirHandle.name;
-                        if (wOutputDir.callback) wOutputDir.callback(dirHandle.name);
+                        wOutputDir.value = data.display_path;
+                        if (wOutputDir.callback) wOutputDir.callback(data.display_path);
                     }
                 }
             } else {
-                const manual = prompt("Escribe o pega la ruta de la carpeta donde deseas guardar:", dirInput.value);
-                if (manual !== null) {
-                    dirInput.value = manual.trim();
-                    if (wOutputDir) {
-                        wOutputDir.value = manual.trim();
-                        if (wOutputDir.callback) wOutputDir.callback(manual.trim());
-                    }
+                throw new Error("HTTP " + res.status);
+            }
+        } catch (err) {
+            const manual = prompt("Escribe o pega la ruta de la carpeta donde deseas guardar (ej: video/minimax o ruta absoluta):", dirInput.value);
+            if (manual !== null) {
+                dirInput.value = manual.trim();
+                if (wOutputDir) {
+                    wOutputDir.value = manual.trim();
+                    if (wOutputDir.callback) wOutputDir.callback(manual.trim());
                 }
             }
-        } catch (_) {}
-        if (app.canvas && app.canvas.setDirty) app.canvas.setDirty(true, true);
+        } finally {
+            browseBtn.textContent = prevText;
+            if (app.canvas && app.canvas.setDirty) app.canvas.setDirty(true, true);
+        }
     };
     dirInputRow.appendChild(browseBtn);
     dirContainer.appendChild(dirInputRow);
@@ -956,6 +964,24 @@ function renderVideoPlayer(node, mainVideoInfo, prevVideoInfo) {
     btnDownload.style.cursor = "pointer";
     btnGroup.appendChild(btnDownload);
 
+    const btnFullscreen = document.createElement("button");
+    btnFullscreen.type = "button";
+    btnFullscreen.textContent = "⛶ PANTALLA COMPLETA";
+    btnFullscreen.title = "Ver video en pantalla completa";
+    btnFullscreen.style.display = "inline-flex";
+    btnFullscreen.style.alignItems = "center";
+    btnFullscreen.style.height = "22px";
+    btnFullscreen.style.padding = "1px 8px";
+    btnFullscreen.style.boxSizing = "border-box";
+    btnFullscreen.style.backgroundColor = "#2a2a2a";
+    btnFullscreen.style.border = "1px solid #444444";
+    btnFullscreen.style.borderRadius = "3px";
+    btnFullscreen.style.color = "#ffffff";
+    btnFullscreen.style.fontSize = "9px";
+    btnFullscreen.style.fontWeight = "bold";
+    btnFullscreen.style.cursor = "pointer";
+    btnGroup.appendChild(btnFullscreen);
+
     topBar.appendChild(btnGroup);
     container.appendChild(topBar);
 
@@ -964,10 +990,16 @@ function renderVideoPlayer(node, mainVideoInfo, prevVideoInfo) {
         compareWrapper.style.position = "relative";
         compareWrapper.style.width = "100%";
         compareWrapper.style.height = "240px";
+        compareWrapper.style.minHeight = "240px";
         compareWrapper.style.backgroundColor = "#000000";
         compareWrapper.style.overflow = "hidden";
         compareWrapper.style.userSelect = "none";
         compareWrapper.style.cursor = "ew-resize";
+
+        btnFullscreen.onclick = () => {
+            if (compareWrapper.requestFullscreen) compareWrapper.requestFullscreen();
+            else if (compareWrapper.webkitRequestFullscreen) compareWrapper.webkitRequestFullscreen();
+        };
 
         // 1. CAPA DE FONDO: Video Previo (tamaño completo 100%, nunca cambia de escala)
         const videoAntes = document.createElement("video");
@@ -1077,7 +1109,6 @@ function renderVideoPlayer(node, mainVideoInfo, prevVideoInfo) {
             let x = clientX - rect.left;
             x = Math.max(0, Math.min(x, rect.width));
             const pct = (x / rect.width) * 100;
-            // Enmascara videoDespues: muestra videoAntes a la izquierda y videoDespues a la derecha
             videoDespues.style.clipPath = `inset(0 0 0 ${pct}%)`;
             dividerLine.style.left = `${pct}%`;
             handle.style.left = `${pct}%`;
@@ -1166,6 +1197,43 @@ function renderVideoPlayer(node, mainVideoInfo, prevVideoInfo) {
             }
         };
         controlBar.appendChild(scrubBar);
+
+        const btnMute = document.createElement("button");
+        btnMute.type = "button";
+        btnMute.textContent = "🔇";
+        btnMute.title = "Silenciar / Activar sonido";
+        btnMute.style.height = "22px";
+        btnMute.style.width = "30px";
+        btnMute.style.backgroundColor = "#2a2a2a";
+        btnMute.style.border = "1px solid #444";
+        btnMute.style.borderRadius = "3px";
+        btnMute.style.color = "#fff";
+        btnMute.style.cursor = "pointer";
+        btnMute.onclick = () => {
+            const isMuted = videoAntes.muted;
+            videoAntes.muted = !isMuted;
+            videoDespues.muted = !isMuted;
+            btnMute.textContent = isMuted ? "🔊" : "🔇";
+        };
+        controlBar.appendChild(btnMute);
+
+        const btnFs = document.createElement("button");
+        btnFs.type = "button";
+        btnFs.textContent = "⛶";
+        btnFs.title = "Pantalla completa";
+        btnFs.style.height = "22px";
+        btnFs.style.width = "30px";
+        btnFs.style.backgroundColor = "#2a2a2a";
+        btnFs.style.border = "1px solid #444";
+        btnFs.style.borderRadius = "3px";
+        btnFs.style.color = "#fff";
+        btnFs.style.cursor = "pointer";
+        btnFs.onclick = () => {
+            if (compareWrapper.requestFullscreen) compareWrapper.requestFullscreen();
+            else if (compareWrapper.webkitRequestFullscreen) compareWrapper.webkitRequestFullscreen();
+        };
+        controlBar.appendChild(btnFs);
+
         container.appendChild(controlBar);
 
     } else {
@@ -1175,9 +1243,18 @@ function renderVideoPlayer(node, mainVideoInfo, prevVideoInfo) {
         videoElem.autoplay = true;
         videoElem.loop = true;
         videoElem.style.width = "100%";
-        videoElem.style.maxHeight = "240px";
+        videoElem.style.height = "240px";
+        videoElem.style.minHeight = "240px";
         videoElem.style.objectFit = "contain";
         videoElem.style.backgroundColor = "#000000";
+        videoElem.style.display = "block";
+        videoElem.style.borderRadius = "4px";
+
+        btnFullscreen.onclick = () => {
+            if (videoElem.requestFullscreen) videoElem.requestFullscreen();
+            else if (videoElem.webkitRequestFullscreen) videoElem.webkitRequestFullscreen();
+        };
+
         container.appendChild(videoElem);
     }
 }

@@ -19,7 +19,7 @@ class PezLoadTransparentPNG:
 
     CATEGORY = "Pez/Image"
     RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("imagen", "máscara")
     FUNCTION = "load_and_composite"
 
     def load_and_composite(self, image, bg_color):
