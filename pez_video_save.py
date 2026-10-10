@@ -150,7 +150,7 @@ class PezVideoSaveCompare:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "video": ("IMAGE,VIDEO", {"tooltip": "Fotogramas del video (IMAGE) o stream nativo de video (VIDEO de LTX/ComfyUI)"}),
+                "video": ("IMAGE", {"tooltip": "Fotogramas del video (IMAGE) o stream nativo de video (VIDEO de LTX/ComfyUI)"}),
                 "fps": ("FLOAT", {"default": 24.0, "min": 1.0, "max": 120.0, "step": 0.1, "tooltip": "Frames por segundo del video"}),
                 "save_mode": (["Guardar Video", "Solo Preview"], {"default": "Guardar Video", "pez_button": True}),
                 "output_dir": ("STRING", {"default": "output", "multiline": False, "tooltip": "Carpeta de destino (relativa o absoluta)"}),
@@ -159,9 +159,9 @@ class PezVideoSaveCompare:
                 "formato": (["MP4 (H.264)", "WebM (VP9)"], {"default": "MP4 (H.264)", "pez_button": True}),
             },
             "optional": {
-                "name": ("STRING", {"forceInput": True, "tooltip": "Entrada para conectar el texto o prefijo del nombre"}),
                 "audio": ("AUDIO", {"tooltip": "Pista de audio opcional a multiplexar en el video"}),
-                "video_previo": ("IMAGE,VIDEO", {"tooltip": "Video anterior / previo para comparativa A/B (acepta IMAGE o VIDEO)"}),
+                "name": ("STRING", {"forceInput": True, "tooltip": "Entrada para conectar el texto o prefijo del nombre"}),
+                "video_previo": ("IMAGE", {"tooltip": "Video anterior / previo para comparativa A/B (acepta IMAGE o VIDEO)"}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -170,7 +170,7 @@ class PezVideoSaveCompare:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE,VIDEO")
+    RETURN_TYPES = ("STRING", "IMAGE")
     RETURN_NAMES = ("ruta de guardado (string)", "video (image,video)")
     OUTPUT_NODE = True
     FUNCTION = "save_and_compare"

@@ -179,28 +179,86 @@ function applySlotPositions(node) {
     if (!node) return;
     const w = node.size ? node.size[0] : 450;
 
-    // Slots superiores ajustados arriba (sin margen excesivo): y = 42, 60, 78
-    // Aceptan tanto IMAGE como VIDEO nativo (compatible con nodo 5518 Decode LTX)
-    if (node.inputs) {
-        if (node.inputs[0]) {
-            node.inputs[0].pos = [10, 42];  // video
-            node.inputs[0].type = "IMAGE,VIDEO";
+    // Orden estricto de entradas:
+    // 1. video (y = 36)
+    // 2. audio (y = 54)
+    // 3. name (y = 72)
+    // 4. video_previo (y = 526)
+    if (node.inputs && Array.isArray(node.inputs)) {
+        let videoSlot = null;
+        let audioSlot = null;
+        let nameSlot = null;
+        let previoSlot = null;
+
+        for (const inp of node.inputs) {
+            if (!inp) continue;
+            const low = (inp.name || "").toLowerCase();
+            const lowLabel = (inp.label || "").toLowerCase();
+            const type = (inp.type || "").toUpperCase();
+
+            if (low === "video_previo" || lowLabel === "video_previo") {
+                if (!previoSlot || (inp.link != null && previoSlot.link == null)) previoSlot = inp;
+            } else if (low === "audio" || lowLabel === "audio" || type === "AUDIO") {
+                if (!audioSlot || (inp.link != null && audioSlot.link == null)) audioSlot = inp;
+            } else if (low === "name" || lowLabel === "name" || type === "STRING") {
+                if (!nameSlot || (inp.link != null && nameSlot.link == null)) nameSlot = inp;
+            } else if (low === "video" || lowLabel === "video" || type.includes("IMAGE") || type.includes("VIDEO")) {
+                if (!videoSlot || (inp.link != null && videoSlot.link == null)) videoSlot = inp;
+            }
         }
-        if (node.inputs[1]) node.inputs[1].pos = [10, 60];  // name
-        if (node.inputs[2]) node.inputs[2].pos = [10, 78];  // audio
-        // Slot de video_previo: y = 526, dentro del encabezado de COMPARADOR Y PREVIEW (y=508..550)
-        if (node.inputs[3]) {
-            node.inputs[3].pos = [10, 526]; // video_previo
-            node.inputs[3].type = "IMAGE,VIDEO";
+
+        const newInputs = [];
+        // 1. video (y = 36)
+        if (videoSlot) {
+            videoSlot.name = "video";
+            videoSlot.label = "video";
+            videoSlot.type = "IMAGE";
+            videoSlot.pos = [10, 36];
+            newInputs.push(videoSlot);
+        }
+        // 2. audio (y = 54)
+        if (audioSlot) {
+            audioSlot.name = "audio";
+            audioSlot.label = "audio";
+            audioSlot.type = "AUDIO";
+            audioSlot.pos = [10, 54];
+            newInputs.push(audioSlot);
+        }
+        // 3. name (y = 72)
+        if (nameSlot) {
+            nameSlot.name = "name";
+            nameSlot.label = "name";
+            nameSlot.type = "STRING";
+            nameSlot.pos = [10, 72];
+            newInputs.push(nameSlot);
+        }
+        // 4. video_previo (y = 526)
+        if (previoSlot) {
+            previoSlot.name = "video_previo";
+            previoSlot.label = "video_previo";
+            previoSlot.type = "IMAGE";
+            previoSlot.pos = [10, 526];
+            newInputs.push(previoSlot);
+        }
+
+        if (newInputs.length > 0) {
+            node.inputs = newInputs;
         }
     }
 
-    // Slots de salida (Video exportable a receptores de IMAGE o VIDEO)
-    if (node.outputs) {
-        if (node.outputs[0]) node.outputs[0].pos = [w - 10, 42]; // Ruta de Guardado (STRING)
+    // Slots de salida
+    if (node.outputs && Array.isArray(node.outputs)) {
+        if (node.outputs[0]) {
+            node.outputs[0].pos = [w - 10, 36]; // ruta de guardado (string)
+            node.outputs[0].name = "ruta de guardado (string)";
+            node.outputs[0].label = "ruta de guardado (string)";
+            node.outputs[0].type = "STRING";
+        }
         if (node.outputs[1]) {
-            node.outputs[1].pos = [w - 10, 60]; // Video (IMAGE,VIDEO)
-            node.outputs[1].type = "IMAGE,VIDEO";
+            node.outputs[1].pos = [w - 10, 54]; // video (image,video)
+            node.outputs[1].name = "video (image,video)";
+            node.outputs[1].label = "video (image,video)";
+            node.outputs[1].type = "IMAGE";
         }
     }
 }
@@ -277,22 +335,31 @@ function setupPezVideoSaveUI(node) {
     const wFormato = node.widgets?.find(w => w.name === "formato");
 
     // Hook getInputPos y getOutputPos
-    const origGetInputPos = node.getInputPos;
     node.getInputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        const ys = [30, 48, 66, 526];
-        const y = (ys[slot] !== undefined) ? ys[slot] : (30 + slot * 18);
+        if (this.inputs && this.inputs[slot] && this.inputs[slot].pos) {
+            out[0] = this.pos[0] + this.inputs[slot].pos[0];
+            out[1] = this.pos[1] + this.inputs[slot].pos[1];
+            return out;
+        }
+        const ys = [36, 54, 72, 526];
+        const y = (ys[slot] !== undefined) ? ys[slot] : (36 + slot * 18);
         out[0] = this.pos[0] + 10;
         out[1] = this.pos[1] + y;
         return out;
     };
 
-    const origGetOutputPos = node.getOutputPos;
     node.getOutputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        const ys = [30, 48];
-        const y = (ys[slot] !== undefined) ? ys[slot] : (30 + slot * 18);
-        out[0] = this.pos[0] + this.size[0] - 10;
+        const w = this.size ? this.size[0] : 450;
+        if (this.outputs && this.outputs[slot] && this.outputs[slot].pos) {
+            out[0] = this.pos[0] + this.outputs[slot].pos[0];
+            out[1] = this.pos[1] + this.outputs[slot].pos[1];
+            return out;
+        }
+        const ys = [36, 54];
+        const y = (ys[slot] !== undefined) ? ys[slot] : (36 + slot * 18);
+        out[0] = this.pos[0] + w - 10;
         out[1] = this.pos[1] + y;
         return out;
     };
