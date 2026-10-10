@@ -195,6 +195,33 @@ function normalizeSlots(node) {
     };
 
     if (node.inputs && Array.isArray(node.inputs)) {
+        // DEDUPLICACIÓN DE SLOTS PARA PezLoadLoraWithTags
+        if (node.comfyClass === "PezLoadLoraWithTags") {
+            const seen = {};
+            for (let i = node.inputs.length - 1; i >= 0; i--) {
+                const inp = node.inputs[i];
+                if (!inp) continue;
+                const low = (inp.name || "").toLowerCase();
+                const type = (inp.type || "").toUpperCase();
+                const canonicalType = (low.includes("model") || type === "MODEL") ? "MODEL" : (low.includes("clip") || type === "CLIP") ? "CLIP" : null;
+                
+                if (canonicalType) {
+                    if (seen[canonicalType]) {
+                        // Si este slot duplicado tiene cable conectado y el previo no, preservar el cable
+                        if (inp.link != null && seen[canonicalType].link == null) {
+                            seen[canonicalType].link = inp.link;
+                        }
+                        node.inputs.splice(i, 1);
+                        continue;
+                    }
+                    seen[canonicalType] = inp;
+                } else if (inp.link == null) {
+                    // Remover slots extra huérfanos sin conexión
+                    node.inputs.splice(i, 1);
+                }
+            }
+        }
+
         for (const input of node.inputs) {
             if (!input) continue;
             const lowName = (input.name || "").toLowerCase();
@@ -1381,16 +1408,12 @@ const PEZ_CLASSES = [
     "PezVideoTrimmer", 
     "PezAutoBatcher", 
     "PezPrompterMaximum", 
-    "PezLoadTransparentPNG"
+    "PezLoadTransparentPNG",
+    "PezLoadLoraWithTags"
 ];
 
 app.registerExtension({
     name: "Pez.UIButtonsV31",
-    async loadedGraphNode(node) {
-        if (node.comfyClass === "PezLoadLoraWithTags") {
-            hookNodeLabels(node);
-        }
-    },
     async nodeCreated(node) {
         if (node.comfyClass === "PezLoadLoraWithTags") {
             hookNodeLabels(node);
@@ -1422,6 +1445,10 @@ app.registerExtension({
                     this.setSize([Math.max(this.size[0] || 0, 474), Math.max(this.size[1] || 0, 900)]);
                     createTrimmerVideoPlayerDOM(this);
                     updateTrimmerVideoPlayer(this);
+                }
+
+                if (this.comfyClass === "PezLoadLoraWithTags") {
+                    hookNodeLabels(this);
                 }
 
                 sanitizeWidgetValues(this);
@@ -1463,6 +1490,9 @@ app.registerExtension({
         }
     },
     async loadedGraphNode(node) {
+        if (node.comfyClass === "PezLoadLoraWithTags") {
+            hookNodeLabels(node);
+        }
         if (PEZ_CLASSES.includes(node.comfyClass)) {
             if (node.comfyClass === "PezPrompterMaximum") {
                 restorePrompterMaximumWidgets(node, node.widgets_values);

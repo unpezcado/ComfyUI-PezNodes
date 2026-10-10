@@ -661,7 +661,7 @@ class PezMiniMaxPreview:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "modelo": ("MODEL", {"tooltip": "El modelo base a previsualizar."}),
+                "model": ("MODEL", {"tooltip": "El modelo base a previsualizar."}),
                 "enable_preview": ("BOOLEAN", {"default": True, "label_on": "Habilitado", "label_off": "Deshabilitado", "tooltip": "Activa o desactiva la previsualización en tiempo real."}),
                 "quality": (["Low (Baja)", "Medium (Media)", "High (Alta)", "Baja", "Media", "Alta"], {"default": "High (Alta)", "tooltip": "Calidad y resolución de la previsualización."}),
             },
@@ -676,7 +676,7 @@ class PezMiniMaxPreview:
     FUNCTION = "execute"
     CATEGORY = "Pez/MiniMax"
 
-    def execute(self, modelo=None, enable_preview=True, quality="High (Alta)", tiny_vae=None, unique_id=None, model=None, **kwargs):
+    def execute(self, model=None, enable_preview=True, quality="High (Alta)", tiny_vae=None, unique_id=None, modelo=None, **kwargs):
         target_model = modelo if modelo is not None else model
         if not enable_preview:
             return (target_model,)

@@ -13,7 +13,7 @@ class PezLoadLoraWithTags:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "modelo": ("MODEL", {"tooltip": "El modelo base."}),
+                "model": ("MODEL", {"tooltip": "El modelo base."}),
                 "clip": ("CLIP", {"tooltip": "El CLIP base."}),
                 "lora_name": (folder_paths.get_filename_list("loras"), ),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -10.0, "max": 10.0, "step": 0.01}),
@@ -27,7 +27,7 @@ class PezLoadLoraWithTags:
     RETURN_NAMES = ("modelo", "clip", "tags (extra)")
     FUNCTION = "load_lora_with_tags"
 
-    def load_lora_with_tags(self, modelo=None, clip=None, lora_name=None, strength_model=1.0, strength_clip=1.0, manual_tags="", model=None, **kwargs):
+    def load_lora_with_tags(self, model=None, clip=None, lora_name=None, strength_model=1.0, strength_clip=1.0, manual_tags="", modelo=None, **kwargs):
         model_obj = modelo if modelo is not None else model
         # 1. Cargar LoRA normalmente usando la funcion de ComfyUI
         lora_path = folder_paths.get_full_path("loras", lora_name)
