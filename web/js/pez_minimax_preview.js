@@ -519,32 +519,7 @@ function applyPezPreviewSlotPositions(node) {
 // Configuración de geometría limpia de slots y encabezados
 function setupPezPreviewHooks(node) {
     if (node._pez_preview_hooked) {
-        if (node.inputs && node.inputs.length > 2) {
-            // Limpieza inmediata si aún contiene slots huérfanos
-            const seen = {};
-            for (let i = node.inputs.length - 1; i >= 0; i--) {
-                const inp = node.inputs[i];
-                if (!inp) continue;
-                const low = (inp.name || "").toLowerCase();
-                const type = (inp.type || "").toUpperCase();
-                const isModel = low.includes("model") || type === "MODEL";
-                const isVAE = low.includes("vae") || type === "VAE";
-                const canonical = isModel ? "MODEL" : isVAE ? "VAE" : null;
-                if (canonical) {
-                    if (seen[canonical]) {
-                        if (inp.link != null && seen[canonical].link == null) {
-                            seen[canonical].link = inp.link;
-                        }
-                        node.inputs.splice(i, 1);
-                        continue;
-                    }
-                    seen[canonical] = inp;
-                } else if (inp.link == null) {
-                    node.inputs.splice(i, 1);
-                }
-            }
-            applyPezPreviewSlotPositions(node);
-        }
+        normalizeSlots(node);
         return;
     }
     node._pez_preview_hooked = true;
@@ -553,43 +528,48 @@ function setupPezPreviewHooks(node) {
         node.title = "🐟 " + node.title.replace(/^🐟\s*/, "");
     }
 
-    const normalizeSlots = (target) => {
+    function normalizeSlots(target) {
         if (!target) return;
         if (target.inputs && target.inputs.length > 0) {
-            // Deduplicación estricta de slots
-            const seen = {};
-            for (let i = target.inputs.length - 1; i >= 0; i--) {
-                const inp = target.inputs[i];
+            let modelSlot = null;
+            let vaeSlot = null;
+
+            for (const inp of target.inputs) {
                 if (!inp) continue;
                 const low = (inp.name || "").toLowerCase();
+                const lowLabel = (inp.label || "").toLowerCase();
                 const type = (inp.type || "").toUpperCase();
-                const isModel = low.includes("model") || type === "MODEL";
-                const isVAE = low.includes("vae") || type === "VAE";
-                const canonical = isModel ? "MODEL" : isVAE ? "VAE" : null;
-                
-                if (canonical) {
-                    if (seen[canonical]) {
-                        if (inp.link != null && seen[canonical].link == null) {
-                            seen[canonical].link = inp.link;
-                        }
-                        target.inputs.splice(i, 1);
-                        continue;
+
+                if (low.includes("model") || lowLabel.includes("model") || type === "MODEL") {
+                    if (!modelSlot || (inp.link != null && modelSlot.link == null)) {
+                        modelSlot = inp;
                     }
-                    seen[canonical] = inp;
-                } else if (inp.link == null) {
-                    target.inputs.splice(i, 1);
+                } else if (low.includes("vae") || lowLabel.includes("vae") || type === "VAE") {
+                    if (!vaeSlot || (inp.link != null && vaeSlot.link == null)) {
+                        vaeSlot = inp;
+                    }
                 }
             }
 
-            for (const inp of target.inputs) {
-                if (inp && (inp.name === "model" || inp.name === "MODEL" || inp.name === "MODELO" || inp.label === "model" || inp.label === "MODELO")) {
-                    inp.label = "modelo";
-                }
-                if (inp && (inp.name === "tinyvae" || inp.name === "TINY_VAE" || inp.name === "tiny_vae" || inp.label === "tinyvae" || inp.label === "TINY_VAE")) {
-                    inp.label = "tiny_vae";
-                }
+            const newInputs = [];
+            // 1. modelo SIEMPRE arriba (index 0)
+            if (modelSlot) {
+                modelSlot.name = "model";
+                modelSlot.label = "modelo";
+                newInputs.push(modelSlot);
+            }
+            // 2. tiny_vae SIEMPRE abajo (index 1)
+            if (vaeSlot) {
+                vaeSlot.name = "tiny_vae";
+                vaeSlot.label = "tiny_vae";
+                newInputs.push(vaeSlot);
+            }
+
+            if (newInputs.length > 0) {
+                target.inputs = newInputs;
             }
         }
+
         if (target.outputs && target.outputs.length > 0) {
             for (const out of target.outputs) {
                 if (out && (out.name === "model" || out.name === "MODEL" || out.name === "MODELO" || out.name === "modelo" || out.label === "model" || out.label === "MODELO" || out.label === "MODEL")) {
@@ -599,7 +579,8 @@ function setupPezPreviewHooks(node) {
             }
         }
         applyPezPreviewSlotPositions(target);
-    };
+    }
+    node._pez_normalizeSlots = normalizeSlots;
     normalizeSlots(node);
 
     const origConfigure = node.onConfigure;
