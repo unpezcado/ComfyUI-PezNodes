@@ -448,13 +448,13 @@ class PezVideoSaveCompare:
         temp_dir = folder_paths.get_temp_directory()
         comfy_output_dir = folder_paths.get_output_directory()
 
-        is_preview_only = (save_mode == "Solo Preview")
+        is_preview_only = (str(save_mode).strip().lower() == "solo preview")
 
         if is_preview_only:
             target_dir = temp_dir
         else:
-            cleaned_out = output_dir.strip()
-            if cleaned_out.lower() in ("output", "", "./output"):
+            cleaned_out = str(output_dir or "output").strip()
+            if cleaned_out.lower() in ("output", "", "./output", "none"):
                 target_dir = comfy_output_dir
             elif os.path.isabs(cleaned_out):
                 target_dir = cleaned_out

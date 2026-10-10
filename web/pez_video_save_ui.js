@@ -293,6 +293,8 @@ function setupPezVideoSaveUI(node) {
     // Retener widgets DOM y posiciones de slots al recargar o cargar flujo
     const origConfigure = node.configure;
     node.configure = function(info) {
+        const savedValues = info && info.widgets_values ? [...info.widgets_values] : null;
+
         const domWidgets = this.widgets ? this.widgets.filter(w => w.name.endsWith("_ui") || w.type === "HTML") : [];
         if (domWidgets.length > 0) {
             this.widgets = this.widgets.filter(w => !w.name.endsWith("_ui") && w.type !== "HTML");
@@ -306,7 +308,22 @@ function setupPezVideoSaveUI(node) {
             }
         }
 
+        if (savedValues && Array.isArray(savedValues) && savedValues.length >= 2) {
+            const canonicalOrder = ["fps", "save_mode", "output_dir", "filename_pattern", "calidad", "formato"];
+            canonicalOrder.forEach((name, idx) => {
+                const w = this.widgets?.find(x => x.name === name);
+                if (w && savedValues[idx] !== undefined) {
+                    w.value = savedValues[idx];
+                }
+            });
+        }
+
         sanitizePezVideoSaveWidgets(this);
+
+        if (this._pez_dir_input) {
+            const wOut = this.widgets?.find(w => w.name === "output_dir");
+            if (wOut) this._pez_dir_input.value = wOut.value || "output";
+        }
 
         this.widgets_start_y = 92;
         applySlotPositions(this);
@@ -319,11 +336,18 @@ function setupPezVideoSaveUI(node) {
         this.setSize([450, 840]);
     };
 
-    // Hook serialize para garantizar que jamás se envíen valores corruptos al servidor
-    const origSerialize = node.serialize;
-    node.serialize = function() {
+    // Hook serialize para garantizar que jamás se envíen valores corruptos o desfasados al servidor
+    const origOnSerialize = node.onSerialize;
+    node.onSerialize = function(info) {
+        if (origOnSerialize) origOnSerialize.apply(this, arguments);
         sanitizePezVideoSaveWidgets(this);
-        return origSerialize ? origSerialize.apply(this, arguments) : {};
+        if (info) {
+            const canonicalOrder = ["fps", "save_mode", "output_dir", "filename_pattern", "calidad", "formato"];
+            info.widgets_values = canonicalOrder.map(name => {
+                const w = this.widgets?.find(x => x.name === name);
+                return w ? w.value : undefined;
+            });
+        }
     };
 
     // Identificar widgets nativos
