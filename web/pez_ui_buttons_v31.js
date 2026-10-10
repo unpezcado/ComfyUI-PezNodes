@@ -260,11 +260,31 @@ function normalizeSlots(node) {
     }
 }
 
+function applyPezUINodeSlotPositions(node) {
+    if (!node) return;
+    const w = node.size ? node.size[0] : 300;
+    if (node.inputs && Array.isArray(node.inputs)) {
+        for (let i = 0; i < node.inputs.length; i++) {
+            if (node.inputs[i]) {
+                node.inputs[i].pos = [10, 36 + i * 18];
+            }
+        }
+    }
+    if (node.outputs && Array.isArray(node.outputs)) {
+        for (let i = 0; i < node.outputs.length; i++) {
+            if (node.outputs[i]) {
+                node.outputs[i].pos = [w - 10, 36 + i * 18];
+            }
+        }
+    }
+}
+
 // 1. DIBUJAR MARCAS "← ENTRADAS" Y "SALIDAS →" EN ROJO (9px BOLD)
 function hookNodeLabels(node) {
     if (!node) return;
     if (node._pez_labels_hooked) {
         normalizeSlots(node);
+        applyPezUINodeSlotPositions(node);
         return;
     }
     node._pez_labels_hooked = true;
@@ -274,25 +294,38 @@ function hookNodeLabels(node) {
     }
 
     normalizeSlots(node);
+    applyPezUINodeSlotPositions(node);
 
     const origConfigure = node.onConfigure || node.configure;
     node.onConfigure = function() {
         if (origConfigure) origConfigure.apply(this, arguments);
         normalizeSlots(this);
+        applyPezUINodeSlotPositions(this);
     };
 
-    // Geometría limpia: slots inician a y = 30 con margen debajo del título y = 16
+    // Geometría limpia: slots inician a y = 36 con margen debajo del título y = 16
     node.getInputPos = function(slot, out) {
         out = out || new Float32Array(2);
+        if (this.inputs && this.inputs[slot] && this.inputs[slot].pos) {
+            out[0] = this.pos[0] + this.inputs[slot].pos[0];
+            out[1] = this.pos[1] + this.inputs[slot].pos[1];
+            return out;
+        }
         out[0] = this.pos[0] + 10;
-        out[1] = this.pos[1] + 30 + (slot * 18);
+        out[1] = this.pos[1] + 36 + (slot * 18);
         return out;
     };
 
     node.getOutputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        out[0] = this.pos[0] + this.size[0] - 10;
-        out[1] = this.pos[1] + 30 + (slot * 18);
+        const w = this.size ? this.size[0] : 300;
+        if (this.outputs && this.outputs[slot] && this.outputs[slot].pos) {
+            out[0] = this.pos[0] + this.outputs[slot].pos[0];
+            out[1] = this.pos[1] + this.outputs[slot].pos[1];
+            return out;
+        }
+        out[0] = this.pos[0] + w - 10;
+        out[1] = this.pos[1] + 36 + (slot * 18);
         return out;
     };
 
@@ -308,6 +341,7 @@ function hookNodeLabels(node) {
     const origOnResize = node.onResize;
     node.onResize = function(size) {
         if (origOnResize) origOnResize.apply(this, arguments);
+        applyPezUINodeSlotPositions(this);
         if (this.comfyClass === "PezPrompterMaximum") {
             this.widgets_start_y = 112;
         }

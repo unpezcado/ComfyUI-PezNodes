@@ -497,9 +497,56 @@ function drawTimeGraph(canvas, stepTimes, step, totalSteps, hoverStep, lockedSte
     }
 }
 
+function applyPezPreviewSlotPositions(node) {
+    if (!node) return;
+    const w = node.size ? node.size[0] : 380;
+    if (node.inputs && Array.isArray(node.inputs)) {
+        for (let i = 0; i < node.inputs.length; i++) {
+            if (node.inputs[i]) {
+                node.inputs[i].pos = [10, 36 + i * 18];
+            }
+        }
+    }
+    if (node.outputs && Array.isArray(node.outputs)) {
+        for (let i = 0; i < node.outputs.length; i++) {
+            if (node.outputs[i]) {
+                node.outputs[i].pos = [w - 10, 36 + i * 18];
+            }
+        }
+    }
+}
+
 // Configuración de geometría limpia de slots y encabezados
 function setupPezPreviewHooks(node) {
-    if (node._pez_preview_hooked) return;
+    if (node._pez_preview_hooked) {
+        if (node.inputs && node.inputs.length > 2) {
+            // Limpieza inmediata si aún contiene slots huérfanos
+            const seen = {};
+            for (let i = node.inputs.length - 1; i >= 0; i--) {
+                const inp = node.inputs[i];
+                if (!inp) continue;
+                const low = (inp.name || "").toLowerCase();
+                const type = (inp.type || "").toUpperCase();
+                const isModel = low.includes("model") || type === "MODEL";
+                const isVAE = low.includes("vae") || type === "VAE";
+                const canonical = isModel ? "MODEL" : isVAE ? "VAE" : null;
+                if (canonical) {
+                    if (seen[canonical]) {
+                        if (inp.link != null && seen[canonical].link == null) {
+                            seen[canonical].link = inp.link;
+                        }
+                        node.inputs.splice(i, 1);
+                        continue;
+                    }
+                    seen[canonical] = inp;
+                } else if (inp.link == null) {
+                    node.inputs.splice(i, 1);
+                }
+            }
+            applyPezPreviewSlotPositions(node);
+        }
+        return;
+    }
     node._pez_preview_hooked = true;
 
     if (node.title && !node.title.startsWith("🐟")) {
@@ -507,12 +554,38 @@ function setupPezPreviewHooks(node) {
     }
 
     const normalizeSlots = (target) => {
+        if (!target) return;
         if (target.inputs && target.inputs.length > 0) {
+            // Deduplicación estricta de slots
+            const seen = {};
+            for (let i = target.inputs.length - 1; i >= 0; i--) {
+                const inp = target.inputs[i];
+                if (!inp) continue;
+                const low = (inp.name || "").toLowerCase();
+                const type = (inp.type || "").toUpperCase();
+                const isModel = low.includes("model") || type === "MODEL";
+                const isVAE = low.includes("vae") || type === "VAE";
+                const canonical = isModel ? "MODEL" : isVAE ? "VAE" : null;
+                
+                if (canonical) {
+                    if (seen[canonical]) {
+                        if (inp.link != null && seen[canonical].link == null) {
+                            seen[canonical].link = inp.link;
+                        }
+                        target.inputs.splice(i, 1);
+                        continue;
+                    }
+                    seen[canonical] = inp;
+                } else if (inp.link == null) {
+                    target.inputs.splice(i, 1);
+                }
+            }
+
             for (const inp of target.inputs) {
                 if (inp && (inp.name === "model" || inp.name === "MODEL" || inp.name === "MODELO" || inp.label === "model" || inp.label === "MODELO")) {
                     inp.label = "modelo";
                 }
-                if (inp && (inp.name === "tinyvae" || inp.name === "TINY_VAE" || inp.label === "tinyvae" || inp.label === "TINY_VAE")) {
+                if (inp && (inp.name === "tinyvae" || inp.name === "TINY_VAE" || inp.name === "tiny_vae" || inp.label === "tinyvae" || inp.label === "TINY_VAE")) {
                     inp.label = "tiny_vae";
                 }
             }
@@ -525,6 +598,7 @@ function setupPezPreviewHooks(node) {
                 }
             }
         }
+        applyPezPreviewSlotPositions(target);
     };
     normalizeSlots(node);
 
@@ -534,22 +608,33 @@ function setupPezPreviewHooks(node) {
         normalizeSlots(this);
     };
 
-    // Los widgets arrancan a y = 68 (inmediatamente debajo del slot tiny_vae a y=48, con margen limpio)
+    // Los widgets arrancan a y = 68 (inmediatamente debajo del slot tiny_vae a y=54, con margen limpio)
     node.widgets_start_y = 68;
 
-    // Hook coordenadas de entrada (model a y=30, tiny_vae a y=48)
+    // Hook coordenadas de entrada (model a y=36, tiny_vae a y=54)
     node.getInputPos = function(slot, out) {
         out = out || new Float32Array(2);
+        if (this.inputs && this.inputs[slot] && this.inputs[slot].pos) {
+            out[0] = this.pos[0] + this.inputs[slot].pos[0];
+            out[1] = this.pos[1] + this.inputs[slot].pos[1];
+            return out;
+        }
         out[0] = this.pos[0] + 10;
-        out[1] = this.pos[1] + 30 + (slot * 18);
+        out[1] = this.pos[1] + 36 + (slot * 18);
         return out;
     };
 
-    // Hook coordenadas de salida (model a y=30)
+    // Hook coordenadas de salida (model a y=36)
     node.getOutputPos = function(slot, out) {
         out = out || new Float32Array(2);
-        out[0] = this.pos[0] + this.size[0] - 10;
-        out[1] = this.pos[1] + 30 + (slot * 18);
+        const w = this.size ? this.size[0] : 380;
+        if (this.outputs && this.outputs[slot] && this.outputs[slot].pos) {
+            out[0] = this.pos[0] + this.outputs[slot].pos[0];
+            out[1] = this.pos[1] + this.outputs[slot].pos[1];
+            return out;
+        }
+        out[0] = this.pos[0] + w - 10;
+        out[1] = this.pos[1] + 36 + (slot * 18);
         return out;
     };
 
@@ -560,7 +645,7 @@ function setupPezPreviewHooks(node) {
     };
 
     // Hook de dibujo en canvas:
-    // Ambos títulos exactamente alineados horizontalmente a y = 16 (con margen arriba de model a y=30)
+    // Ambos títulos exactamente alineados horizontalmente a y = 16 (con margen arriba de model a y=36)
     const origDrawFg = node.onDrawForeground;
     node.onDrawForeground = function(ctx) {
         if (origDrawFg) origDrawFg.apply(this, arguments);
@@ -587,6 +672,7 @@ function setupPezPreviewHooks(node) {
         if (this.size[0] < 380) this.size[0] = 380;
         if (this.size[1] < 600) this.size[1] = 600;
         this.widgets_start_y = 68;
+        applyPezPreviewSlotPositions(this);
     };
 }
 
@@ -1134,4 +1220,10 @@ app.registerExtension({
             });
         });
     },
+    async loadedGraphNode(node) {
+        if (node.comfyClass === "PezMiniMaxPreview" || node.type === "PezMiniMaxPreview") {
+            allPreviewNodes.add(node);
+            setupPezPreviewHooks(node);
+        }
+    }
 });
