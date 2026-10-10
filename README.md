@@ -131,6 +131,16 @@ El nodo definitivo para guardar video con multiplexación de audio, formateo din
     - Nuevo control interruptor **Toggle Switch** interactivo para activar/desactivar la previsualización en vivo.
     - Nueva botonera interactiva de **Calidad de Render** con selector exclusivo (`Baja`, `Media`, `Alta`).
     - Panel unificado inferior de telemetría y diagnósticos en español (pasos, resolución, sigma/delta y velocidad).
+  - **Corrección y estandarización en orden de entradas:**
+    - **`Pez Load LoRA & Triggers`:** `modelo` fijado arriba y `clip` abajo.
+    - **`Pez MiniMax Preview`:** `modelo` fijado arriba y `tiny_vae` abajo.
+    - **`Pez Video Save & Compare`:** orden estandarizado a `video` (arriba), `audio` (en medio) y `name` (abajo).
+  - **Geometría de slots y eliminación de duplicados/círculos partidos:**
+    - Alineación exacta de `slot.pos` con `getInputPos`, eliminando círculos desfasados o superpuestos.
+    - Unificación de tipos de datos para que todos los conectores se muestren como círculos de color sólido estándar.
+    - Limpieza y deduplicación automática de slots huérfanos al cargar flujos guardados previamente.
+  - **Corrección de guardado y serialización en `Pez Video Save & Compare`:**
+    - Mapeo canónico de parámetros que garantiza el guardado directo en `ComfyUI/output` (o la ruta personalizada elegida), evitando desvíos accidentales a `temp` en modo *Guardar Video*.
   - **Limpieza visual y alineación geométrica:**
     - Reubicación de los rótulos `← ENTRADAS` y `SALIDAS →` inmediatamente debajo de la barra de título con margen vertical estandarizado.
     - Ajuste de márgenes y espaciados en `Pez Prompter Maximum` y `Pez Load LoRA & Triggers`.
