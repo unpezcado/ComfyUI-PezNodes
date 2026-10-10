@@ -195,30 +195,44 @@ function normalizeSlots(node) {
     };
 
     if (node.inputs && Array.isArray(node.inputs)) {
-        // DEDUPLICACIÓN DE SLOTS PARA PezLoadLoraWithTags
+        // DEDUPLICACIÓN Y ORDENAMIENTO ESTRICTO PARA PezLoadLoraWithTags: modelo arriba (0), clip abajo (1)
         if (node.comfyClass === "PezLoadLoraWithTags") {
-            const seen = {};
-            for (let i = node.inputs.length - 1; i >= 0; i--) {
-                const inp = node.inputs[i];
+            let modelSlot = null;
+            let clipSlot = null;
+
+            for (const inp of node.inputs) {
                 if (!inp) continue;
                 const low = (inp.name || "").toLowerCase();
+                const lowLabel = (inp.label || "").toLowerCase();
                 const type = (inp.type || "").toUpperCase();
-                const canonicalType = (low.includes("model") || type === "MODEL") ? "MODEL" : (low.includes("clip") || type === "CLIP") ? "CLIP" : null;
-                
-                if (canonicalType) {
-                    if (seen[canonicalType]) {
-                        // Si este slot duplicado tiene cable conectado y el previo no, preservar el cable
-                        if (inp.link != null && seen[canonicalType].link == null) {
-                            seen[canonicalType].link = inp.link;
-                        }
-                        node.inputs.splice(i, 1);
-                        continue;
+
+                if (low.includes("model") || lowLabel.includes("model") || type === "MODEL") {
+                    if (!modelSlot || (inp.link != null && modelSlot.link == null)) {
+                        modelSlot = inp;
                     }
-                    seen[canonicalType] = inp;
-                } else if (inp.link == null) {
-                    // Remover slots extra huérfanos sin conexión
-                    node.inputs.splice(i, 1);
+                } else if (low.includes("clip") || lowLabel.includes("clip") || type === "CLIP") {
+                    if (!clipSlot || (inp.link != null && clipSlot.link == null)) {
+                        clipSlot = inp;
+                    }
                 }
+            }
+
+            const newInputs = [];
+            // 1. modelo SIEMPRE arriba (index 0)
+            if (modelSlot) {
+                modelSlot.name = "model";
+                modelSlot.label = "modelo";
+                newInputs.push(modelSlot);
+            }
+            // 2. clip SIEMPRE abajo (index 1)
+            if (clipSlot) {
+                clipSlot.name = "clip";
+                clipSlot.label = "clip";
+                newInputs.push(clipSlot);
+            }
+
+            if (newInputs.length > 0) {
+                node.inputs = newInputs;
             }
         }
 
